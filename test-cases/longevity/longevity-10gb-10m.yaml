@@ -1,0 +1,8 @@
+test_duration: 10
+
+n_db_nodes: 3
+n_loaders: 1
+n_monitor_nodes: 1
+instance_type_db: 'i4i.large'
+user_prefix: 'longevity-10gb-10m'
+stress_cmd: "cassandra-stress write no-warmup cl=QUORUM duration=2m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=2 -pop seq=1..1000 -log interval=5"
