@@ -17,12 +17,10 @@ class DFOutputThread(FileFollowerThread):
 
 class DFTest(ClusterTester):
     def test_df_output(self):
-        self.log.info("Running df command on all nodes")
-        '''
+        self.log.info("Running df command on all nodes:")
         for node in self.db_cluster.nodes:
             result = node.remoter.run('df -h')
             self.log.info(f"DF output for node {node.name}:\n{result.stdout}")
-        '''
         # run stress command
         stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(factor=3)" ' \
                          '-mode cql3 native -rate threads=10 -pop seq=1..10000000 ' \
@@ -46,3 +44,8 @@ class DFTest(ClusterTester):
             df_thread.stop()
 
         self.get_stress_results(queue=stress_queue)
+
+        self.log.info("After stress test, running df command on all nodes:")
+        for node in self.db_cluster.nodes:
+            result = node.remoter.run('df -h')
+            self.log.info(f"DF output for node {node.name}:\n{result.stdout}")
