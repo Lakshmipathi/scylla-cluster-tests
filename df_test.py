@@ -24,7 +24,7 @@ class DFTest(ClusterTester):
         # run stress command
         stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(factor=3)" ' \
                          '-mode cql3 native -rate threads=10 -pop seq=1..10000000 ' \
-                         '-col "size=FIXED(5000) n=FIXED(1)"'
+                         '-col "size=FIXED(10000) n=FIXED(1)"'
 
         stress_queue = self.run_stress_thread(stress_cmd=stress_cmd,
                                               stress_num=1, keyspace_num=1)
