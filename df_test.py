@@ -47,7 +47,8 @@ class DFTest(ClusterTester):
         new_node = new_nodes[0]
         self.db_cluster.wait_for_init(node_list=[new_node], timeout=MAX_TIME_WAIT_FOR_NEW_NODE_UP, check_node_health=False)
         self.db_cluster.wait_for_nodes_up_and_normal(nodes=[new_node])
-        self.log.info("New node added")
+        total_nodes_in_cluster = len(self.db_cluster.nodes)
+        self.log.info(f"New node added, total nodes in cluster: {total_nodes_in_cluster}")
         self.get_df_output()
 
     def get_df_output(self):
