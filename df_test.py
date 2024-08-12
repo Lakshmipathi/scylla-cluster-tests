@@ -7,7 +7,7 @@ class DFTest(ClusterTester):
         self.log.info("Running df command on all nodes:")
         self.get_df_output()
         
-        stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(factor=3)" ' \
+        stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
                      '-mode cql3 native -rate threads=10 -pop seq=1..10000000 ' \
                      '-col "size=FIXED(10000) n=FIXED(1)"'
 
