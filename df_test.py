@@ -3,21 +3,28 @@ from sdcm.tester import ClusterTester
 from sdcm.cluster import MAX_TIME_WAIT_FOR_NEW_NODE_UP
 
 class DFTest(ClusterTester):
-    def test_df_output(self):
-        self.log.info("Running df command on all nodes:")
-        self.get_df_output()
-        
-        stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
                      '-mode cql3 native -rate threads=10 -pop seq=1..10000000 ' \
                      '-col "size=FIXED(10000) n=FIXED(1)"'
+    def setUp(self):
+        super().setUp()
+        self.start_time = time.time()
 
-        self.run_stress_and_add_nodes(stress_cmd)
-
-        '''
+    def test_df_output(self):
+        """
+        3 nodes cluster, RF=3.
+        Write data and stop stress command.
         Add 4th node after 25% disk usage.
         Add 5th node after 50% disk usage.
         Add 6th node after 75% disk usage.
-        '''
+        """
+
+        self.log.info("Running df command on all nodes:")
+        self.get_df_output()
+        self.run_stress_and_add_nodes(self.stress_cmd)
+
     def run_stress_and_add_nodes(self, stress_cmd):
         target_disk_usages = [25, 50, 75]
         current_disk_target = 0
