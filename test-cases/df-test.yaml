@@ -13,4 +13,5 @@ post_behavior_monitor_nodes: "destroy"
 append_scylla_yaml:
   enable_tablets: true
   enterprise_disable_kms: true
+  tablets_initial_scale_factor: 4
 
