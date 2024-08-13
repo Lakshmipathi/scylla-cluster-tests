@@ -29,7 +29,7 @@ class DFTest(ClusterTester):
         target_disk_usages = [25, 50, 75]
         current_disk_target = 0
         
-        while len(self.db_cluster.nodes) < 3:
+        while len(self.db_cluster.nodes) < 6:
             stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=1)
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
