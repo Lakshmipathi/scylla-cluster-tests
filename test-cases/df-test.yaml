@@ -13,4 +13,3 @@ enterprise_disable_kms: true
 
 append_scylla_yaml:
   enable_tablets: true
-  tablets_initial_scale_factor: 16
