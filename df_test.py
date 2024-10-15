@@ -5,9 +5,11 @@ from sdcm.cluster import MAX_TIME_WAIT_FOR_NEW_NODE_UP
 class DFTest(ClusterTester):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.stress_cmd = 'cassandra-stress write cl=ONE n=10000000 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
-                     '-mode cql3 native -rate threads=10 -pop seq=1..10000000 ' \
-                     '-col "size=FIXED(10000) n=FIXED(1)"'
+        # write approximately 10GB of data
+        self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1073742 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
+                               '-mode cql3 native -rate threads=10 ' \
+                               '-col "size=FIXED(10000) n=FIXED(1)"'
+
     def setUp(self):
         super().setUp()
         self.start_time = time.time()
@@ -15,37 +17,41 @@ class DFTest(ClusterTester):
     def test_df_output(self):
         """
         3 nodes cluster, RF=3.
-        Write data and stop stress command.
-        Add 4th node after 25% disk usage.
-        Add 5th node after 50% disk usage.
-        Add 6th node after 75% disk usage.
+        Write data until 85% disk usage is reached.
+        Sleep for 90 minutes.
+        Add 4th node.
         """
-
         self.log.info("Running df command on all nodes:")
         self.get_df_output()
-        self.run_stress_and_add_nodes(self.stress_cmd)
+        self.run_stress_and_add_node()
 
-    def run_stress_and_add_nodes(self, stress_cmd):
-        target_disk_usages = [25, 50, 75]
-        current_disk_target = 0
+    def run_stress_and_add_node(self):
+        table_disk_usages = [30, 30, 25]
         
-        while len(self.db_cluster.nodes) < 6:
+        for i, usage in enumerate(table_disk_usages, 1):
+            self.log.info(f"populating keyspace {i} to reach {usage}% disk usage")
+            self.run_stress_until_target(f"ks{i}", usage)
+
+        self.log.info("Wait for 90 minutes")
+        time.sleep(5400)  
+
+        self.log.info("Adding a new node")
+        self.add_new_node()
+
+    def run_stress_until_target(self, keyspace, target_usage):
+        current_usage = self.get_max_disk_usage()
+        num = 0
+        while current_usage < target_usage:
+            num += 1
+            table_name = f"table_{num}"
+            stress_cmd = f"{self.stress_cmd_10gb} -keyspace {keyspace} -table {table_name}"
+            
             stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=1)
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
 
-            usage = self.get_max_disk_usage()
-            self.log.info(f"Current max disk usage: {usage}%")
-
-            if current_disk_target < len(target_disk_usages) and usage >= target_disk_usages[current_disk_target]:
-                self.add_new_node()
-                current_disk_target += 1
-                
-        # Run stress command one final time on a 6-node cluster 
-        stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=1)
-        self.verify_stress_thread(cs_thread_pool=stress_queue)
-        self.get_stress_results(queue=stress_queue)
-        self.get_df_output()
+            current_usage = self.get_max_disk_usage()
+            self.log.info(f"Current max disk usage after writing to {keyspace}.{table_name}: {current_usage}%")
 
     def add_new_node(self):
         self.get_df_output()
