@@ -5,10 +5,10 @@ from sdcm.cluster import MAX_TIME_WAIT_FOR_NEW_NODE_UP
 class DFTest(ClusterTester):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # write approximately 10GB of data
-        self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1073742 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
-                               '-mode cql3 native -rate threads=10 ' \
-                               '-col "size=FIXED(10000) n=FIXED(1)"'
+        # write 10GB of data
+        self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
+                               '-mode cql3 native -rate threads=10 -pop seq=1..1048576 ' \
+                               '-col "size=FIXED(10240) n=FIXED(1)"'
 
     def setUp(self):
         super().setUp()
