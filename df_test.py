@@ -6,9 +6,11 @@ class DFTest(ClusterTester):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # write 10GB of data
-        self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' \
+        self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 ' \
                                '-mode cql3 native -rate threads=10 -pop seq=1..1048576 ' \
-                               '-col "size=FIXED(10240) n=FIXED(1)"'
+                               '-col "size=FIXED(10240) n=FIXED(1)"' \
+                               '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' 
+
 
     def setUp(self):
         super().setUp()
@@ -44,7 +46,7 @@ class DFTest(ClusterTester):
         while current_usage < target_usage:
             num += 1
             table_name = f"table_{num}"
-            stress_cmd = f"{self.stress_cmd_10gb} -keyspace {keyspace} -table {table_name}"
+            stress_cmd = f"{self.stress_cmd_10gb} keyspace={keyspace} table={table_name}"
             
             stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=1)
             self.verify_stress_thread(cs_thread_pool=stress_queue)
