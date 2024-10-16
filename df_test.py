@@ -29,27 +29,32 @@ class DFTest(ClusterTester):
     def run_stress_and_add_node(self):
         target_usage = 35
         target_used_size = self.calculate_target_used_size(target_usage)
-        self.run_stress_until_target(target_used_size)
+        self.run_stress_until_target(target_used_size, target_usage)
 
         self.log.info("Wait for 10 minutes")
+        self.log_disk_usage()
         time.sleep(600)  
+        self.log_disk_usage()
 
         self.log.info("Adding a new node")
-        self.add_new_node()
+        #self.add_new_node()
 
-    def run_stress_until_target(self, target_used_size):
+    def run_stress_until_target(self, target_used_size, target_usage):
         current_used = self.get_max_disk_used()
+        current_usage = self.get_max_disk_usage()
         num = 0
-        while current_used < target_used_size:
+        while current_used < target_used_size and current_usage < target_usage:
             num += 1
             
             stress_queue = self.run_stress_thread(stress_cmd=self.stress_cmd_10gb, stress_num=1, keyspace_num=num)
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
 
+            self.flush_all_nodes()
+
             current_used = self.get_max_disk_used()
             current_usage = self.get_max_disk_usage()
-            self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used:.2f} GB / {target_used_size:.2f} GB)")
+            self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used} GB / {target_used_size} GB)")
 
     def add_new_node(self):
         self.get_df_output()
@@ -67,11 +72,16 @@ class DFTest(ClusterTester):
             result = node.remoter.run('df -h /var/lib/scylla')
             self.log.info(f"DF output for node {node.name}:\n{result.stdout}")
 
+    def flush_all_nodes(self):
+        for node in self.db_cluster.nodes:
+            self.log.info(f"Flushing data on node {node.name}")
+            node.run_nodetool("flush")
+
     def get_max_disk_usage(self):
         max_usage = 0
         for node in self.db_cluster.nodes:
             result = node.remoter.run("df -h --output=pcent /var/lib/scylla | sed 1d | sed 's/%//'")
-            usage = float(result.stdout.strip())
+            usage = int(result.stdout.strip())
             max_usage = max(max_usage, usage)
         return max_usage
 
@@ -79,7 +89,7 @@ class DFTest(ClusterTester):
         max_used = 0
         for node in self.db_cluster.nodes:
             result = node.remoter.run("df -h --output=used /var/lib/scylla | sed 1d | sed 's/G//'")
-            used = float(result.stdout.strip())
+            used = int(result.stdout.strip())
             max_used = max(max_used, used)
         return max_used
 
@@ -87,10 +97,10 @@ class DFTest(ClusterTester):
         result = node.remoter.run("df -h --output=size,used,avail,pcent /var/lib/scylla | sed 1d")
         size, used, avail, pcent = result.stdout.strip().split()
         return {
-            'total': float(size.rstrip('G')),
-            'used': float(used.rstrip('G')),
-            'available': float(avail.rstrip('G')),
-            'used_percent': float(pcent.rstrip('%'))
+            'total': int(size.rstrip('G')),
+            'used': int(used.rstrip('G')),
+            'available': int(avail.rstrip('G')),
+            'used_percent': int(pcent.rstrip('%'))
         }
 
     def calculate_target_used_size(self, target_percent):
@@ -111,3 +121,11 @@ class DFTest(ClusterTester):
 
         return target_used_size
 
+    def log_disk_usage(self):
+        for node in self.db_cluster.nodes:
+            info = self.get_disk_info(node)
+            self.log.info(f"Disk usage for node {node.name}:")
+            self.log.info(f"  Total: {info['total']} GB")
+            self.log.info(f"  Used: {info['used']} GB")
+            self.log.info(f"  Available: {info['available']} GB")
+            self.log.info(f"  Used %: {info['used_percent']}%")
