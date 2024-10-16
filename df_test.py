@@ -8,7 +8,7 @@ class DFTest(ClusterTester):
         # write 10GB of data
         self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 ' \
                                '-mode cql3 native -rate threads=10 -pop seq=1..1048576 ' \
-                               '-col "size=FIXED(10240) n=FIXED(1)"' \
+                               '-col "size=FIXED(10240) n=FIXED(1)" ' \
                                '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" ' 
 
 
@@ -45,15 +45,12 @@ class DFTest(ClusterTester):
         num = 0
         while current_usage < target_usage:
             num += 1
-            table_name = f"table_{num}"
-            stress_cmd = f"{self.stress_cmd_10gb} keyspace={keyspace} table={table_name}"
-            
-            stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=1)
+            stress_queue = self.run_stress_thread(stress_cmd=self.stress_cmd_10gb, stress_num=1, keyspace_num=num)
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
 
             current_usage = self.get_max_disk_usage()
-            self.log.info(f"Current max disk usage after writing to {keyspace}.{table_name}: {current_usage}%")
+            self.log.info(f"Current max disk usage after writing to {keyspace}{num}: {current_usage}%")
 
     def add_new_node(self):
         self.get_df_output()
