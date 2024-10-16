@@ -64,7 +64,8 @@ class DFTest(ClusterTester):
             self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used} GB / {target_used_size} GB)")
 
             # Write smaller dataset near the threshold
-            smaller_dataset = (target_used_size - current_used) < 10
+            smaller_dataset = (((target_used_size - current_used) < 10) or ((target_usage - current_usage) <= 5))
+
 
     def add_new_node(self):
         self.get_df_output()
