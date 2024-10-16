@@ -9,7 +9,11 @@ class DFTest(ClusterTester):
         self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 ' \
                                '-mode cql3 native -rate threads=10 -pop seq=1..1048576 ' \
                                '-col "size=FIXED(10240) n=FIXED(1)" ' \
-                               '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" '
+                               '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
+        self.stress_cmd_1gb = 'cassandra-stress write cl=ONE n=104858 ' \
+                              '-mode cql3 native -rate threads=10 -pop seq=1..104858 ' \
+                              '-col "size=FIXED(10240) n=FIXED(1)" ' \
+                              '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
 
     def setUp(self):
         super().setUp()
@@ -43,10 +47,13 @@ class DFTest(ClusterTester):
         current_used = self.get_max_disk_used()
         current_usage = self.get_max_disk_usage()
         num = 0
+        smaller_dataset = True
         while current_used < target_used_size and current_usage < target_usage:
             num += 1
             
-            stress_queue = self.run_stress_thread(stress_cmd=self.stress_cmd_10gb, stress_num=1, keyspace_num=num)
+            stress_cmd = self.stress_cmd_1gb if smaller_dataset else self.stress_cmd_10gb
+            stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=num)
+
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
 
@@ -55,6 +62,9 @@ class DFTest(ClusterTester):
             current_used = self.get_max_disk_used()
             current_usage = self.get_max_disk_usage()
             self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used} GB / {target_used_size} GB)")
+
+            # Write smaller dataset near the threshold
+            smaller_dataset = (target_used_size - current_used) < 10
 
     def add_new_node(self):
         self.get_df_output()
