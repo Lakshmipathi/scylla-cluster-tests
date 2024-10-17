@@ -21,7 +21,7 @@ class DFTest(ClusterTester):
         n = dataset_size * 1024 * 1024 * 1024 // row_size
         seq_end = n + 100000
 
-        return f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=10 -pop seq=1..{seq_end} ' \
+        return f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=1 -pop seq=1..{seq_end} ' \
                f'-col "size=FIXED({row_size}) n=FIXED(1)" -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
 
     def setUp(self):
