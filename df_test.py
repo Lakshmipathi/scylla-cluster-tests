@@ -5,6 +5,7 @@ from sdcm.cluster import MAX_TIME_WAIT_FOR_NEW_NODE_UP
 class DFTest(ClusterTester):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        '''
         # write 10GB of data
         self.stress_cmd_10gb = 'cassandra-stress write cl=ONE n=1048576 ' \
                                '-mode cql3 native -rate threads=10 -pop seq=1..1048576 ' \
@@ -14,6 +15,13 @@ class DFTest(ClusterTester):
                               '-mode cql3 native -rate threads=10 -pop seq=1..104858 ' \
                               '-col "size=FIXED(10240) n=FIXED(1)" ' \
                               '-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
+        '''
+
+    def prepare_dataset_layout(self, dataset_size, row_size=10240):
+        n = dataset_size * 1024 * 1024 * 1024 // row_size
+
+        return f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=10 -pop seq=1..{n} ' \
+               f'-col "size=FIXED({row_size}) n=FIXED(1)" -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
 
     def setUp(self):
         super().setUp()
@@ -51,7 +59,9 @@ class DFTest(ClusterTester):
         while current_used < target_used_size and current_usage < target_usage:
             num += 1
             
-            stress_cmd = self.stress_cmd_1gb if smaller_dataset else self.stress_cmd_10gb
+            dataset_size = 1 if smaller_dataset else 10  # 1 GB or 10 GB
+            #ks_name = "ks_small" if smaller_dataset else "ks_large"
+            stress_cmd = self.prepare_dataset_layout(dataset_size) #, keyspace_name=ks_name)
             stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, keyspace_num=num)
 
             self.verify_stress_thread(cs_thread_pool=stress_queue)
