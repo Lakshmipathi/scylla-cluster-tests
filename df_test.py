@@ -63,7 +63,7 @@ class DFTest(ClusterTester):
             dataset_size = 1 if smaller_dataset else 10  # 1 GB or 10 GB
             ks_name = "keyspace_small" if smaller_dataset else "keyspace_large"
             stress_cmd = self.prepare_dataset_layout(dataset_size)
-            stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, keyspace_name=f"{ks_name}", stress_num=1, keyspace_num=num)
+            stress_queue = self.run_stress_thread(stress_cmd=stress_cmd, keyspace_name=f"{ks_name}{num}", stress_num=1, keyspace_num=num)
 
             self.verify_stress_thread(cs_thread_pool=stress_queue)
             self.get_stress_results(queue=stress_queue)
