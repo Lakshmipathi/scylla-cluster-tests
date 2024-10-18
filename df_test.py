@@ -19,9 +19,9 @@ class DFTest(ClusterTester):
 
     def prepare_dataset_layout(self, dataset_size, row_size=10240):
         n = dataset_size * 1024 * 1024 * 1024 // row_size
-        seq_end = n + 10000000
+        seq_end = n * 100
 
-        return f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=10 -pop seq=1..{seq_end} ' \
+        return f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=1 -pop seq=1..{seq_end} ' \
                f'-col "size=FIXED({row_size}) n=FIXED(1)" -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
 
     def setUp(self):
