@@ -76,6 +76,8 @@ class DFTest(ClusterTester):
 
             # Write smaller dataset near the threshold (10% or 20GB of the target)
             smaller_dataset = (((target_used_size - current_used) < 20) or ((target_usage - current_usage) <= 10))
+            if smaller_dataset == True:
+                time.sleep(120)
 
 
     def add_new_node(self):
