@@ -40,7 +40,7 @@ class DFTest(ClusterTester):
         self.run_stress_and_add_node()
 
     def run_stress_and_add_node(self):
-        target_usage = 35
+        target_usage = 85
         target_used_size = self.calculate_target_used_size(target_usage)
         self.run_stress_until_target(target_used_size, target_usage)
 
@@ -74,8 +74,8 @@ class DFTest(ClusterTester):
             current_usage = self.get_max_disk_usage()
             self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used} GB / {target_used_size} GB)")
 
-            # Write smaller dataset near the threshold
-            smaller_dataset = (((target_used_size - current_used) < 10) or ((target_usage - current_usage) <= 5))
+            # Write smaller dataset near the threshold (10% or 20GB of the target)
+            smaller_dataset = (((target_used_size - current_used) < 20) or ((target_usage - current_usage) <= 10))
 
 
     def add_new_node(self):
