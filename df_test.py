@@ -38,7 +38,7 @@ class DFTest(ClusterTester):
         self.log.info("Running df command on all nodes:")
         self.get_df_output()
         self.run_stress_and_add_node(85)
-        self.run_stress_and_add_node(95)
+        self.run_stress_and_add_node(90)
 
     def run_stress_and_add_node(self, target_usage):
         target_used_size = self.calculate_target_used_size(target_usage)
