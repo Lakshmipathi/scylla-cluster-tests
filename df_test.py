@@ -38,7 +38,7 @@ class DFTest(ClusterTester):
         self.log.info("Running df command on all nodes:")
         self.get_df_output()
         self.run_stress(85)
-        self.run_stress(90)
+        self.run_stress(93)
 
         self.log.info("Adding a new node")
         self.add_new_node()
@@ -53,9 +53,9 @@ class DFTest(ClusterTester):
         target_used_size = self.calculate_target_used_size(target_usage)
         self.run_stress_until_target(target_used_size, target_usage)
 
-        self.log.info("Wait for 10 minutes")
+        self.log.info("Wait for 20 minutes")
         self.log_disk_usage()
-        time.sleep(600)  
+        time.sleep(1200)  
         self.log_disk_usage()
 
     def run_stress_until_target(self, target_used_size, target_usage):
