@@ -44,18 +44,18 @@ class DFTest(ClusterTester):
         self.add_new_node()
 
         ## TODO: Move below code
-        self.log.info("Wait for 10 minutes")
         self.log_disk_usage()
-        time.sleep(600)  
+        self.log.info("Wait for 60 minutes")
+        time.sleep(3600)  
         self.log_disk_usage()
 
     def run_stress(self, target_usage):
         target_used_size = self.calculate_target_used_size(target_usage)
         self.run_stress_until_target(target_used_size, target_usage)
 
-        self.log.info("Wait for 20 minutes")
         self.log_disk_usage()
-        time.sleep(1200)  
+        self.log.info("Wait for 60 minutes")
+        time.sleep(3600)  
         self.log_disk_usage()
 
     def run_stress_until_target(self, target_used_size, target_usage):
