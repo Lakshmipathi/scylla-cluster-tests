@@ -1,10 +1,12 @@
 import time
 from sdcm.tester import ClusterTester
-from sdcm.cluster import MAX_TIME_WAIT_FOR_NEW_NODE_UP
+
 
 class FullStorageUtilizationTest(ClusterTester):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.stress_cmd_30mins = self.params.get('stress_cmd')
+        self.add_node_cnt = self.params.get('add_node_cnt')
 
     def prepare_dataset_layout(self, dataset_size, row_size=10240):
         n = dataset_size * 1024 * 1024 * 1024 // row_size
@@ -20,22 +22,24 @@ class FullStorageUtilizationTest(ClusterTester):
     def test_storage_utilization(self):
         """
         3 nodes cluster, RF=3.
-        Write data until 85% disk usage is reached.
-        Sleep for 90 minutes.
+        Write data until 90% disk usage is reached.
+        Sleep for 60 minutes.
         Add 4th node.
         """
         self.log.info("Running df command on all nodes:")
         self.get_df_output()
-        self.run_stress(85)
-        self.run_stress(93)
+        self.run_stress(20)
 
+        self.run_stress_thread(stress_cmd=self.stress_cmd_30mins, keyspace_name="add_node")
+        self.log.info("Wait for 2 mins for the stress command to start")
+        time.sleep(120)
         self.log.info("Adding a new node")
         self.add_new_node()
 
         ## TODO: Move below code
         self.log_disk_usage()
         self.log.info("Wait for 60 minutes")
-        time.sleep(3600)  
+        time.sleep(120)  
         self.log_disk_usage()
 
     def run_stress(self, target_usage):
@@ -44,7 +48,7 @@ class FullStorageUtilizationTest(ClusterTester):
 
         self.log_disk_usage()
         self.log.info("Wait for 60 minutes")
-        time.sleep(3600)  
+        time.sleep(120)  
         self.log_disk_usage()
 
     def run_stress_until_target(self, target_used_size, target_usage):
@@ -72,17 +76,14 @@ class FullStorageUtilizationTest(ClusterTester):
             current_usage = self.get_max_disk_usage()
             self.log.info(f"Current max disk usage after writing to keyspace{num}: {current_usage}% ({current_used} GB / {target_used_size} GB)")
 
-
-
     def add_new_node(self):
         self.get_df_output()
-        new_nodes = self.db_cluster.add_nodes(count=1, enable_auto_bootstrap=True)
-        self.monitors.reconfigure_scylla_monitoring()
-        new_node = new_nodes[0]
-        self.db_cluster.wait_for_init(node_list=[new_node], timeout=MAX_TIME_WAIT_FOR_NEW_NODE_UP, check_node_health=False)
-        self.db_cluster.wait_for_nodes_up_and_normal(nodes=[new_node])
+        new_nodes = self.db_cluster.add_nodes(count=self.add_node_cnt, enable_auto_bootstrap=True)
+        self.db_cluster.wait_for_init(node_list=new_nodes)
+        self.db_cluster.wait_for_nodes_up_and_normal(nodes=new_nodes)
         total_nodes_in_cluster = len(self.db_cluster.nodes)
         self.log.info(f"New node added, total nodes in cluster: {total_nodes_in_cluster}")
+        self.monitors.reconfigure_scylla_monitoring()
         self.get_df_output()
 
     def get_df_output(self):
