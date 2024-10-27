@@ -272,3 +272,4 @@ class TestConfig(metaclass=Singleton):  # pylint: disable=too-many-public-method
             message="Argus is disabled by configuration",
             severity=Severity.WARNING,
         ).publish_or_dump()
+

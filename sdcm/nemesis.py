@@ -6664,3 +6664,133 @@ class EndOfQuotaNemesis(Nemesis):
 
     def disrupt(self):
         self.disrupt_end_of_quota_nemesis()
+
+class StorageUtilizationNemesis(Nemesis):
+    disruptive = False
+    kubernetes = True
+    free_tier_set = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target_usage = 93
+
+    def disrupt(self):
+        current_usage = self.get_max_disk_usage()
+        self.log_disk_usage()
+
+        if current_usage < self.target_usage:
+            self.log.info(f"Current disk usage {current_usage}% is below target {self.target_usage}%")
+            self.log.info("Starting to refill storage...")
+            self.disrupt_fill_storage()
+        else:
+            self.log.info(f"Storage at {current_usage}%, monitoring...")
+            self.monitor_storage()
+
+    def prepare_dataset_layout(self, dataset_size, row_size=10240):
+        n = dataset_size * 1024 * 1024 * 1024 // row_size
+        seq_end = n * 100
+        return (f'cassandra-stress write cl=ONE n={n} -mode cql3 native -rate threads=10 '
+                f'-pop dist="uniform(1..{seq_end})" -col "size=FIXED({row_size}) n=FIXED(1)" '
+                f'-schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"')
+
+    def disrupt_fill_storage(self):
+        target_used_size = self.calculate_target_used_size()
+        self.run_stress_until_target(target_used_size)
+
+    def run_stress_until_target(self, target_used_size):
+        current_used = self.get_max_disk_used()
+        current_usage = self.get_max_disk_usage()
+        num = 0
+
+        while current_used < target_used_size and current_usage < self.target_usage:
+            num += 1
+            # Write smaller dataset near the threshold (20% or 20GB of the target)
+            smaller_dataset = (((target_used_size - current_used) < 20) or ((self.target_usage - current_usage) <= 20))
+            
+
+            dataset_size = 1 if smaller_dataset else 15
+            ks_name = "keyspace_small" if smaller_dataset else "keyspace_large"
+            self.log.info(f"target:{self.target_usage}%  current:{current_usage}% for {current_used} GB / {target_used_size} GB) using {ks_name} with {dataset_size}")
+            stress_cmd = self.prepare_dataset_layout(dataset_size)
+            
+            stress_queue = self.tester.run_stress_thread(
+                stress_cmd=stress_cmd,
+                keyspace_name=f"{ks_name}{num}",
+                stress_num=1,
+                keyspace_num=num
+            )
+
+            self.tester.verify_stress_thread(cs_thread_pool=stress_queue)
+            self.tester.get_stress_results(queue=stress_queue)
+
+            self.flush_all_nodes()
+            time.sleep(60)
+            
+            current_used = self.get_max_disk_used()
+            current_usage = self.get_max_disk_usage()
+            self.log.info(f"Current max disk usage after writing to {ks_name}{num}: "
+                         f"{current_usage}% ({current_used} GB / {target_used_size} GB)")
+            self.log_disk_usage()
+
+    def monitor_storage(self):
+        current_usage = self.get_max_disk_usage()
+        if current_usage >= self.target_usage:
+            self.log.warning(f"Disk usage is at {current_usage}%, which is at or above target of {self.target_usage}%")
+
+    def get_max_disk_usage(self):
+        max_usage = 0
+        for node in self.cluster.nodes:
+            result = node.remoter.run("df -h --output=pcent /var/lib/scylla | sed 1d | sed 's/%//'")
+            usage = int(result.stdout.strip())
+            max_usage = max(max_usage, usage)
+        return max_usage
+
+    def get_max_disk_used(self):
+        max_used = 0
+        for node in self.cluster.nodes:
+            result = node.remoter.run("df -h --output=used /var/lib/scylla | sed 1d | sed 's/G//'")
+            used = int(result.stdout.strip())
+            max_used = max(max_used, used)
+        return max_used
+
+    def get_disk_info(self, node):
+        result = node.remoter.run("df -h --output=size,used,avail,pcent /var/lib/scylla | sed 1d")
+        size, used, avail, pcent = result.stdout.strip().split()
+        return {
+            'total': int(size.rstrip('G')),
+            'used': int(used.rstrip('G')),
+            'available': int(avail.rstrip('G')),
+            'used_percent': int(pcent.rstrip('%'))
+        }
+
+    def calculate_target_used_size(self):
+        max_total = 0
+        for node in self.cluster.nodes:
+            info = self.get_disk_info(node)
+            max_total = max(max_total, info['total'])
+        
+        target_used_size = (self.target_usage / 100) * max_total
+        current_used = self.get_max_disk_used()
+        additional_usage_needed = target_used_size - current_used
+
+        self.log.info(f"Current max disk usage: {self.get_max_disk_usage():.2f}%")
+        self.log.info(f"Current max used space: {current_used:.2f} GB")
+        self.log.info(f"Max total disk space: {max_total:.2f} GB")
+        self.log.info(f"Target used space to reach {self.target_usage}%: {target_used_size:.2f} GB")
+        self.log.info(f"Additional space to be used: {additional_usage_needed:.2f} GB")
+
+        return target_used_size
+
+    def log_disk_usage(self):
+        for node in self.cluster.nodes:
+            info = self.get_disk_info(node)
+            self.log.info(f"Disk usage for node {node.name}:")
+            self.log.info(f"  Total: {info['total']} GB")
+            self.log.info(f"  Used: {info['used']} GB")
+            self.log.info(f"  Available: {info['available']} GB")
+            self.log.info(f"  Used %: {info['used_percent']}%")
+
+    def flush_all_nodes(self):
+        for node in self.cluster.nodes:
+            self.log.info(f"Flushing data on node {node.name}")
+            node.run_nodetool("flush")

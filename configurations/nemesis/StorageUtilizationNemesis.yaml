@@ -1,0 +1,3 @@
+nemesis_class_name: 'StorageUtilizationNemesis'
+user_prefix: 'storage-utilization-monitor'
+nemesis_interval: 300

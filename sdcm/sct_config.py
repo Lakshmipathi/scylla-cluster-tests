@@ -1245,6 +1245,15 @@ class SCTConfiguration(dict):
         dict(name="flush_period", env="SCT_FLUSH_PERIOD", type=int,
              help=""),
 
+        # StorageUtilizationTest
+        dict(name="storage_nemesis_action", env="SCT_STORAGE_NEMESIS_ACTION", type=str,
+             help=""),
+        dict(name="add_node_cnt", env="SCT_ADD_NODE_CNT", type=int,
+             help=""),
+        dict(name="remove_node_cnt", env="SCT_REMOVE_NODE_CNT", type=int,
+             help=""),
+
+
         # UpgradeTest
         dict(name="new_scylla_repo", env="SCT_NEW_SCYLLA_REPO", type=str,
              help=""),
