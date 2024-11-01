@@ -6672,7 +6672,10 @@ class StorageUtilizationNemesis(Nemesis):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.target_usage = 93
+        self.target_usage = 90
+        self.threshold_percentage = 50  # Threshold for switching to smaller writes
+        self.large_write_percentage = 25  # Standard large write percentage
+        self.small_write_percentage = 1  # Small write percentage
 
     def disrupt(self):
         current_usage = self.get_max_disk_usage()
@@ -6701,31 +6704,42 @@ class StorageUtilizationNemesis(Nemesis):
         current_used = self.get_max_disk_used()
         current_usage = self.get_max_disk_usage()
         num = 0
+        smaller_dataset = False
+
+        additional_space_needed = target_used_size - current_used
+
+        # Calculate initial write size 
+        initial_write_percentage = 25 - current_usage
+        initial_write_size = max(1, round(additional_space_needed * (initial_write_percentage / 100)))
+        large_write_size = max(1, round(additional_space_needed * (self.large_write_percentage / 100)))
+        small_write_size = max(1, round(additional_space_needed * (self.small_write_percentage / 100)))
+
+        self.log.info(f"Total space needed: {additional_space_needed}GB")
+        self.log.info(f"Initial write size ({initial_write_percentage}%): {initial_write_size}GB")
+        self.log.info(f"Large write size ({self.large_write_percentage}%): {large_write_size}GB")
+        self.log.info(f"Small write size ({self.small_write_percentage}%): {small_write_size}GB")
 
         while current_used < target_used_size and current_usage < self.target_usage:
             num += 1
-            # Write smaller dataset near the threshold (20% or 20GB of the target)
-            smaller_dataset = (((target_used_size - current_used) < 20) or ((self.target_usage - current_usage) <= 20))
-            
 
-            dataset_size = 1 if smaller_dataset else 15
+            if num == 1:
+                dataset_size = initial_write_size
+            else:
+                smaller_dataset = current_usage >= self.threshold_percentage
+                dataset_size = small_write_size if smaller_dataset else large_write_size
+
             ks_name = "keyspace_small" if smaller_dataset else "keyspace_large"
-            self.log.info(f"target:{self.target_usage}%  current:{current_usage}% for {current_used} GB / {target_used_size} GB) using {ks_name} with {dataset_size}")
+            self.log.info(f"target:{self.target_usage}%  current:{current_usage}% ({current_used} GB / {target_used_size} GB) using {ks_name} with {dataset_size}GB writes")
+
             stress_cmd = self.prepare_dataset_layout(dataset_size)
-            
-            stress_queue = self.tester.run_stress_thread(
-                stress_cmd=stress_cmd,
-                keyspace_name=f"{ks_name}{num}",
-                stress_num=1,
-                keyspace_num=num
-            )
+            stress_queue = self.tester.run_stress_thread(stress_cmd=stress_cmd,  keyspace_name=f"{ks_name}{num}", stress_num=1, keyspace_num=num)
 
             self.tester.verify_stress_thread(cs_thread_pool=stress_queue)
             self.tester.get_stress_results(queue=stress_queue)
 
             self.flush_all_nodes()
-            time.sleep(60)
-            
+            time.sleep(120)
+
             current_used = self.get_max_disk_used()
             current_usage = self.get_max_disk_usage()
             self.log.info(f"Current max disk usage after writing to {ks_name}{num}: "
@@ -6768,17 +6782,8 @@ class StorageUtilizationNemesis(Nemesis):
         for node in self.cluster.nodes:
             info = self.get_disk_info(node)
             max_total = max(max_total, info['total'])
-        
+
         target_used_size = (self.target_usage / 100) * max_total
-        current_used = self.get_max_disk_used()
-        additional_usage_needed = target_used_size - current_used
-
-        self.log.info(f"Current max disk usage: {self.get_max_disk_usage():.2f}%")
-        self.log.info(f"Current max used space: {current_used:.2f} GB")
-        self.log.info(f"Max total disk space: {max_total:.2f} GB")
-        self.log.info(f"Target used space to reach {self.target_usage}%: {target_used_size:.2f} GB")
-        self.log.info(f"Additional space to be used: {additional_usage_needed:.2f} GB")
-
         return target_used_size
 
     def log_disk_usage(self):
