@@ -5,7 +5,7 @@ n_monitor_nodes: 1
 user_prefix: 'storage-utilization'
 instance_type_db: 'i4i.large'
 instance_provision: 'spot'
-add_node_cnt: 3
+add_node_cnt: 1
 
 enterprise_disable_kms: true
 scaling_action_type: "scale_out"
