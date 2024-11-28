@@ -17,3 +17,4 @@ stress_cmd_r: 'cassandra-stress read duration=30m -rate threads=<THREADS_PLACE_H
 stress_cmd: 'cassandra-stress write no-warmup cl=ALL n=372400592 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" -mode cql3 native -rate threads=200 -col "size=FIXED(128) n=FIXED(8)" -pop seq=1..340786072'
 append_scylla_yaml:
   enable_tablets: true
+  tablets_initial_scale_factor: 8
