@@ -14,6 +14,6 @@ diskusage_hardlimit: 90
 
 stress_cmd_w: 'cassandra-stress write duration=30m -rate threads=<THREADS_PLACE_HOLDER> -mode cql3 native -pop seq=1..5000000 -col "size=FIXED(10240) n=FIXED(1)" -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
 stress_cmd_r: 'cassandra-stress read duration=30m -rate threads=<THREADS_PLACE_HOLDER> -mode cql3 native -pop seq=1..5000000 -col "size=FIXED(10240) n=FIXED(1)" -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)"'
-stress_cmd: 'cassandra-stress write no-warmup cl=ALL n=372400592 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" -mode cql3 native -rate threads=200 -col "size=FIXED(128) n=FIXED(8)" -pop seq=1..372400592'
+stress_cmd: 'cassandra-stress write no-warmup cl=ALL n=372400592 -schema "replication(strategy=NetworkTopologyStrategy,replication_factor=3)" -mode cql3 native -rate threads=200 -col "size=FIXED(128) n=FIXED(8)" -pop seq=1..340786072'
 append_scylla_yaml:
   enable_tablets: true
