@@ -4223,16 +4223,14 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 self.decommission_nodes(nodes_to_decommission)
             else:
                 for node in nodes_to_decommission:
-                    if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
-                        self._increase_cluster_load(duration)
                     self.decommission_nodes([node])
         except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
             InfoEvent(f'FinishEvent - ShrinkCluster failed decommissioning a node {self.target_node} with error '
                       f'{str(exc)}').publish()
 
-    @latency_calculator_decorator(legend="Doubling cluster load")
-    def _increase_cluster_load(self, duration: int) -> None:
-        duration = 30
+    @latency_calculator_decorator(legend="After Cluster Scaleout")
+    def _after_cluster_scaleout(self, duration: int) -> None:
+        duration = 5
         self.log.info("Increasing the load on the cluster for %s minutes", duration)
         stress_queue = self.tester.run_stress_thread(
             stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
@@ -4250,7 +4248,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         # pass on the exact nodes only if we have specific types for them
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
-            self._increase_cluster_load(duration)
+            self._after_cluster_scaleout(duration)
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
 
     # NOTE: version limitation is caused by the following:
@@ -4290,8 +4288,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return new_nodes
 
     def _shrink_cluster(self, rack=None, new_nodes: list[BaseNode] | None = None):
-        #add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')
-        add_nodes_number = 1
+        add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')
         InfoEvent(message=f'Start shrink cluster by {add_nodes_number} nodes').publish()
         # Check that number of nodes is enough for decommission:
         cur_num_nodes_in_dc = len([n for n in self.cluster.data_nodes if n.dc_idx == self.target_node.dc_idx])
