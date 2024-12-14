@@ -2088,10 +2088,10 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return ''
 
     def disrupt_truncate(self):
-        keyspace_truncate = 'ks_truncate'
+        keyspace_truncate = 'refill_keyspace'
         table = 'standard1'
 
-        self._prepare_test_table(ks=keyspace_truncate)
+        #self._prepare_test_table(ks=keyspace_truncate)
 
         # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
         with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
@@ -2102,6 +2102,16 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.target_node.run_cqlsh(
             cmd=f'TRUNCATE {keyspace_truncate}.{table}{truncate_cmd_timeout_suffix}',
             timeout=truncate_timeout)
+        
+    def disrupt_truncate2(self):
+        # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
+        with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
+            self.target_node.run_nodetool("flush")
+        # do the actual truncation
+        drop_timeout = 600
+        self.target_node.run_cqlsh(
+            cmd=f'DELETE FROM keyspace1.standard1 WHERE key >= 1 AND key <= 250000000;',
+            timeout=drop_timeout)
 
     def disrupt_truncate_large_partition(self):
         """
@@ -4222,8 +4232,15 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             if self.cluster.parallel_node_operations:
                 self.decommission_nodes(nodes_to_decommission)
             else:
+                run = 0
                 for node in nodes_to_decommission:
+                    run = run + 1                    
                     self.decommission_nodes([node])
+                    if run == 1:
+                        self.disrupt_truncate()
+                    else:
+                        self.disrupt_truncate2()
+                    
         except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
             InfoEvent(f'FinishEvent - ShrinkCluster failed decommissioning a node {self.target_node} with error '
                       f'{str(exc)}').publish()
@@ -4237,6 +4254,16 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
         self.log.info(f"Increased load results: {results}")
 
+    @latency_calculator_decorator(legend="After Cluster Scalein")
+    def _after_cluster_scalein(self, duration: int) -> None:
+        duration = 30
+        self.log.info("Increasing the load on the cluster for %s minutes", duration)
+        stress_queue = self.tester.run_stress_thread(
+            stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
+        self.log.info(f"Increased load results: {results}")
+
+
     @target_data_nodes
     def disrupt_grow_shrink_cluster(self):
         sleep_time_between_ops = self.cluster.params.get('nemesis_sequence_sleep_between_ops')
@@ -4249,8 +4276,12 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scaleout(duration)
+        time.sleep(1800)
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
-
+        time.sleep(1800)
+        if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
+            self._after_cluster_scalein(duration)
+            
     # NOTE: version limitation is caused by the following:
     #       - https://github.com/scylladb/scylla-enterprise/issues/3211
     #       - https://github.com/scylladb/scylladb/issues/14184
@@ -4288,7 +4319,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return new_nodes
 
     def _shrink_cluster(self, rack=None, new_nodes: list[BaseNode] | None = None):
-        add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')
+        add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')        
         InfoEvent(message=f'Start shrink cluster by {add_nodes_number} nodes').publish()
         # Check that number of nodes is enough for decommission:
         cur_num_nodes_in_dc = len([n for n in self.cluster.data_nodes if n.dc_idx == self.target_node.dc_idx])
