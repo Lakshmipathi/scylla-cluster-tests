@@ -4276,9 +4276,9 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scaleout(duration)
-        time.sleep(1800)
+        self.tester.wait_no_compactions_running()
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
-        time.sleep(1800)
+        self.tester.wait_no_compactions_running()
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scalein(duration)
             
