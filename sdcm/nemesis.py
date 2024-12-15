@@ -4247,7 +4247,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scaleout")
     def _after_cluster_scaleout(self, duration: int) -> None:
-        duration = 5
+        duration = 30
         self.log.info("Increasing the load on the cluster for %s minutes", duration)
         stress_queue = self.tester.run_stress_thread(
             stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
@@ -4256,7 +4256,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scalein")
     def _after_cluster_scalein(self, duration: int) -> None:
-        duration = 5
+        duration = 30
         self.log.info("Increasing the load on the cluster for %s minutes", duration)
         stress_queue = self.tester.run_stress_thread(
             stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
@@ -4314,6 +4314,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     stress_queue = self.tester.run_stress_thread(stress_cmd=refill_90_percent, stress_num=1, stats_aggregate_cmds=False)
                     results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
                     self.log.info("Completed: refill data to 90")
+                    self.tester.wait_no_compactions_running()
+                    self.log.info("Completed: refill data to 90 - no compactions running..proceed")
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
         return new_nodes
