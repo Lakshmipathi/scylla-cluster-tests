@@ -4247,22 +4247,23 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scaleout")
     def _after_cluster_scaleout(self, duration: int) -> None:
-        duration = 15
-        self.log.info("After scaleout %s minutes", duration)
-        time.sleep(900)
-        #stress_queue = self.tester.run_stress_thread(
-        #    stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        #results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
+        duration = 30
+        self.log.info("After scaleout %s minutes", duration)        
+        self.tester.wait_no_compactions_running()
+        short_stress_cmd = self.tester.params.get('stress_cmd_r')            
+        stress_queue = self.tester.run_stress_thread(
+            stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
 
     @latency_calculator_decorator(legend="After Cluster Scalein")
     def _after_cluster_scalein(self, duration: int) -> None:
-        duration = 15
+        duration = 30
         self.log.info("After scalein %s minutes", duration)
-        time.sleep(900)
-        #stress_queue = self.tester.run_stress_thread(
-        #    stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        #results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-
+        self.tester.wait_no_compactions_running()
+        short_stress_cmd = self.tester.params.get('stress_cmd_r')            
+        stress_queue = self.tester.run_stress_thread(
+            stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
 
     @target_data_nodes
     def disrupt_grow_shrink_cluster(self):
@@ -4271,14 +4272,19 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             self.steady_state_latency()
             self.has_steady_run = True
         new_nodes = self._grow_cluster(rack=None)
-
+        
         # pass on the exact nodes only if we have specific types for them
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
-        if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
+        if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):            
             self._after_cluster_scaleout(duration)
-        #self.tester.wait_no_compactions_running()
+        self.tester.wait_no_compactions_running()
+        long_stress_cmd = self.tester.params.get('stress_cmd')            
+        stress_queue = self.tester.run_stress_thread(
+            stress_cmd=long_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
-        #self.tester.wait_no_compactions_running()
+        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
+        self.tester.wait_no_compactions_running()
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scalein(duration)
             
@@ -4299,6 +4305,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')
         InfoEvent(message=f"Start grow cluster by {add_nodes_number} data nodes").publish()
         new_nodes = []
+        stress_queue2 = None
         if self.cluster.parallel_node_operations:
             new_nodes = self.add_new_nodes(count=add_nodes_number, rack=rack,
                                            instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
@@ -4309,6 +4316,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
                                                 instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
                 if idx == 0:
+                    self.tester.stop_load()
+                    self.tester.wait_no_compactions_running()
                     self.log.info("Started: refill data to 90")
                     refill_90_percent = self.tester.params.get('stress_cmd_w')
                     stress_queue = self.tester.run_stress_thread(stress_cmd=refill_90_percent, stress_num=1, stats_aggregate_cmds=False)
@@ -4316,6 +4325,10 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     self.log.info("Completed: refill data to 90")
                     self.tester.wait_no_compactions_running()
                     self.log.info("Completed: refill data to 90 - no compactions running..proceed")
+                    short_stress_cmd = self.tester.params.get('stress_cmd_r')            
+                    stress_queue2 = self.tester.run_stress_thread(stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=30)        
+                    
+        results = self.tester.get_stress_results(queue=stress_queue2, store_results=False)
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
         return new_nodes
