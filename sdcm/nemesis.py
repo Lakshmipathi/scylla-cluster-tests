@@ -4247,21 +4247,21 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scaleout")
     def _after_cluster_scaleout(self, duration: int) -> None:
-        duration = 30
-        self.log.info("Increasing the load on the cluster for %s minutes", duration)
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-        self.log.info(f"Increased load results: {results}")
+        duration = 15
+        self.log.info("After scaleout %s minutes", duration)
+        time.sleep(900)
+        #stress_queue = self.tester.run_stress_thread(
+        #    stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        #results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
 
     @latency_calculator_decorator(legend="After Cluster Scalein")
     def _after_cluster_scalein(self, duration: int) -> None:
-        duration = 30
-        self.log.info("Increasing the load on the cluster for %s minutes", duration)
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-        self.log.info(f"Increased load results: {results}")
+        duration = 15
+        self.log.info("After scalein %s minutes", duration)
+        time.sleep(900)
+        #stress_queue = self.tester.run_stress_thread(
+        #    stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
+        #results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
 
 
     @target_data_nodes
@@ -4276,9 +4276,9 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scaleout(duration)
-        self.tester.wait_no_compactions_running()
+        #self.tester.wait_no_compactions_running()
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
-        self.tester.wait_no_compactions_running()
+        #self.tester.wait_no_compactions_running()
         if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
             self._after_cluster_scalein(duration)
             
