@@ -4247,7 +4247,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scaleout")
     def _after_cluster_scaleout(self, duration: int) -> None:
-        duration = 30
+        duration = 5
         self.log.info("Increasing the load on the cluster for %s minutes", duration)
         stress_queue = self.tester.run_stress_thread(
             stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
@@ -4256,7 +4256,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @latency_calculator_decorator(legend="After Cluster Scalein")
     def _after_cluster_scalein(self, duration: int) -> None:
-        duration = 30
+        duration = 5
         self.log.info("Increasing the load on the cluster for %s minutes", duration)
         stress_queue = self.tester.run_stress_thread(
             stress_cmd=self.tester.stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
