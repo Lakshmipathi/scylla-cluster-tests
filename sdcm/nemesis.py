@@ -4182,11 +4182,18 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
         self.clear_snapshots()
 
-    @latency_calculator_decorator(legend="Adding new nodes")
+    @latency_calculator_decorator(legend="Adding node4")
     def add_new_nodes(self, count, rack=None, instance_type: str = None) -> list[BaseNode]:
         nodes = self._add_and_init_new_cluster_nodes(count, rack=rack, instance_type=instance_type)
         wait_for_tablets_balanced(nodes[0])
         return nodes
+
+    @latency_calculator_decorator(legend="Adding node5")
+    def add_final_node(self, count, rack=None, instance_type: str = None) -> list[BaseNode]:
+        nodes = self._add_and_init_new_cluster_nodes(count, rack=rack, instance_type=instance_type)
+        wait_for_tablets_balanced(nodes[0])
+        return nodes
+
 
     @latency_calculator_decorator(legend="Decommission nodes: remove nodes from cluster")
     def decommission_nodes(self, nodes):
@@ -4313,9 +4320,9 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             for idx in range(add_nodes_number):
                 # if rack is not specified, round-robin racks to spread nodes evenly
                 rack_idx = rack if rack is not None else idx % self.cluster.racks_count
-                new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
-                                                instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
                 if idx == 0:
+                    new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
+                                                instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))                
                     self.tester.stop_load()
                     self.tester.wait_no_compactions_running()
                     self.log.info("Started: refill data to 90")
@@ -4327,6 +4334,12 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     self.log.info("Completed: refill data to 90 - no compactions running..proceed")
                     short_stress_cmd = self.tester.params.get('stress_cmd_r')            
                     stress_queue2 = self.tester.run_stress_thread(stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=30)        
+                else:
+                    new_nodes += self.add_final_node(count=1, rack=rack_idx,
+                                                instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))                                
+                    
+                
+                
                     
         results = self.tester.get_stress_results(queue=stress_queue2, store_results=False)
         self.log.info("Finish cluster grow")
