@@ -4337,6 +4337,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     self.log.info("Completed: refill data to 90 - no compactions running..proceed")
                     short_stress_cmd = self.tester.params.get('stress_cmd_r')            
                     stress_queue2 = self.tester.run_stress_thread(stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=30)        
+                    # wait for c-s to start
+                    time.sleep(120)
                 else:
                     new_nodes += self.add_final_node(count=1, rack=rack_idx,
                                                 instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))                                
