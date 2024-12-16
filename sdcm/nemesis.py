@@ -2091,8 +2091,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         keyspace_truncate = 'refill_keyspace'
         table = 'standard1'
 
-        #self._prepare_test_table(ks=keyspace_truncate)
-
         # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
         with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
             self.target_node.run_nodetool("flush")
@@ -2104,14 +2102,18 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             timeout=truncate_timeout)
         
     def disrupt_truncate2(self):
+        keyspace_truncate = 'ks_drop'
+        table = 'standard1'
+
         # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
         with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
             self.target_node.run_nodetool("flush")
         # do the actual truncation
-        drop_timeout = 600
+        truncate_timeout = 600
+        truncate_cmd_timeout_suffix = self._truncate_cmd_timeout_suffix(truncate_timeout)
         self.target_node.run_cqlsh(
-            cmd=f'DELETE FROM keyspace1.standard1 WHERE key >= 1 AND key <= 250000000;',
-            timeout=drop_timeout)
+            cmd=f'TRUNCATE {keyspace_truncate}.{table}{truncate_cmd_timeout_suffix}',
+            timeout=truncate_timeout)
 
     def disrupt_truncate_large_partition(self):
         """
