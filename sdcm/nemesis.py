@@ -4247,6 +4247,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     self.decommission_nodes([node])
                     if run == 1:
                         self.disrupt_truncate()
+                        self.tester.wait_no_compactions_running()
                     else:
                         self.disrupt_truncate2()
                     
