@@ -41,5 +41,9 @@ email_subject_postfix: 'elasticity test'
 nemesis_double_load_during_grow_shrink_duration: 0
 parallel_node_operations: false
 
+append_scylla_yaml:
+  enable_tablets: true
+  auto_snapshot: false
+
 stress_image:
   cassandra-stress: 'scylladb/cassandra-stress:3.17.0'
