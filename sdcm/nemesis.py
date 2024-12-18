@@ -2101,19 +2101,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             cmd=f'TRUNCATE {keyspace_truncate}.{table}{truncate_cmd_timeout_suffix}',
             timeout=truncate_timeout)
         
-    def disrupt_truncate2(self):
-        keyspace_truncate = 'ks_drop'
-        table = 'standard1'
-
-        # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
-        with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
-            self.target_node.run_nodetool("flush")
-        # do the actual truncation
-        truncate_timeout = 600
-        truncate_cmd_timeout_suffix = self._truncate_cmd_timeout_suffix(truncate_timeout)
-        self.target_node.run_cqlsh(
-            cmd=f'TRUNCATE {keyspace_truncate}.{table}{truncate_cmd_timeout_suffix}',
-            timeout=truncate_timeout)
 
     def disrupt_truncate_large_partition(self):
         """
@@ -4252,26 +4239,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             InfoEvent(f'FinishEvent - ShrinkCluster failed decommissioning a node {self.target_node} with error '
                       f'{str(exc)}').publish()
 
-    @latency_calculator_decorator(legend="After Cluster Scaleout")
-    def _after_cluster_scaleout(self, duration: int) -> None:
-        duration = 30
-        self.log.info("After scaleout %s minutes", duration)        
-        self.tester.wait_no_compactions_running()
-        short_stress_cmd = self.tester.params.get('stress_cmd_r')            
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-
-    @latency_calculator_decorator(legend="After Cluster Scalein")
-    def _after_cluster_scalein(self, duration: int) -> None:
-        duration = 30
-        self.log.info("After scalein %s minutes", duration)
-        self.tester.wait_no_compactions_running()
-        short_stress_cmd = self.tester.params.get('stress_cmd_r')            
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-
     @target_data_nodes
     def disrupt_grow_shrink_cluster(self):
         sleep_time_between_ops = self.cluster.params.get('nemesis_sequence_sleep_between_ops')
@@ -4282,18 +4249,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         
         # pass on the exact nodes only if we have specific types for them
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
-        if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):            
-            self._after_cluster_scaleout(duration)
-        self.tester.wait_no_compactions_running()
-        long_stress_cmd = self.tester.params.get('stress_cmd')            
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=long_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=duration)
-        
         self._shrink_cluster(rack=None, new_nodes=new_nodes)
-        results = self.tester.get_stress_results(queue=stress_queue, store_results=False)
-        self.tester.wait_no_compactions_running()
-        if duration := self.tester.params.get('nemesis_double_load_during_grow_shrink_duration'):
-            self._after_cluster_scalein(duration)
             
     # NOTE: version limitation is caused by the following:
     #       - https://github.com/scylladb/scylla-enterprise/issues/3211
@@ -4332,7 +4288,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     self.log.info("Completed: refill data to 90")
                     self.tester.wait_no_compactions_running()
                     self.log.info("Completed: refill data to 90 - no compactions running..proceed")
-                    short_stress_cmd = self.tester.params.get('stress_cmd_r')            
+                    # Restart steady cmd after refill.
+                    short_stress_cmd = self.tester.params.get('stress_cmd_m')            
                     stress_queue2 = self.tester.run_stress_thread(stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=30)        
                     # wait for c-s to start
                     time.sleep(120)
@@ -4341,9 +4298,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                                                 instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))                                
                     
                 
-                
-                    
-        results = self.tester.get_stress_results(queue=stress_queue2, store_results=False)
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
         return new_nodes
