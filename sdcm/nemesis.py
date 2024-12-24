@@ -4246,7 +4246,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                     run = run + 1                    
                     self.decommission_nodes([node])
                     if run == 1:
-                        self.disrupt_truncate()
+                        #self.disrupt_truncate()
+                        pass
                     
         except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
             InfoEvent(f'FinishEvent - ShrinkCluster failed decommissioning a node {self.target_node} with error '
