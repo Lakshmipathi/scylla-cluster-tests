@@ -115,6 +115,7 @@
 - disrupt_memory_stress:
   - disruptive = True
   - free_tier_set = True
+  - long_skiplist = True 
 - disrupt_mgmt_backup:
   - manager_operation = True
   - disruptive = False
@@ -195,9 +196,11 @@
   - disruptive = True
   - kubernetes = True
   - limited = True
+  - long_skiplist = True
 - disrupt_nodetool_enospc:
   - disruptive = True
   - kubernetes = True
+  - long_skiplist = True
 - disrupt_nodetool_flush_and_reshard_on_kubernetes:
   - disruptive = True
   - kubernetes = True
@@ -287,6 +290,7 @@
   - free_tier_set = True
 - disrupt_start_stop_cleanup_compaction:
   - disruptive = False
+  - long_skiplist = True 
 - disrupt_start_stop_major_compaction:
   - disruptive = False
 - disrupt_start_stop_scrub_compaction:
