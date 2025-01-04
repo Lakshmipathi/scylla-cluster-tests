@@ -6141,6 +6141,7 @@ class MgmtRestore(Nemesis):
     disruptive = True
     kubernetes = True
     limited = True
+    long_skiplist = True
 
     def disrupt(self):
         self.disrupt_mgmt_restore()
