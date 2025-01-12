@@ -4373,14 +4373,14 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
         # pass on the exact nodes only if we have specific types for them
         new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
-        self.tester.wait_no_compactions_running()
-        long_stress_cmd = self.tester.params.get('stress_cmd')
-        stress_queue = self.tester.run_stress_thread(
-            stress_cmd=long_stress_cmd, stress_num=1, stats_aggregate_cmds=False)
+        #self.tester.wait_no_compactions_running()
+        #long_stress_cmd = self.tester.params.get('stress_cmd')
+        #stress_queue = self.tester.run_stress_thread(
+        #    stress_cmd=long_stress_cmd, stress_num=1, stats_aggregate_cmds=False)
 
         self.scalein_to_reach_full_storage(rack=None, new_nodes=new_nodes)
-        self.tester.get_stress_results(queue=stress_queue, store_results=False)
-        self.tester.wait_no_compactions_running()
+        #self.tester.get_stress_results(queue=self.stress_queue, store_results=False)
+        #self.tester.wait_no_compactions_running()
 
     def scaleout_at_full_storage(self, rack=None):
         add_nodes_number = self.tester.params.get('nemesis_add_node_cnt')
@@ -4403,14 +4403,14 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 self.log.info("Completed: refill data to 90")
                 self.tester.wait_no_compactions_running()
                 self.log.info("Completed: refill data to 90 - no compactions running..proceed")
-                short_stress_cmd = self.tester.params.get('stress_cmd_r')
-                stress_queue = self.tester.run_stress_thread(stress_cmd=short_stress_cmd, stress_num=1, stats_aggregate_cmds=False, duration=30)
+                stress_cmd = self.tester.params.get('stress_cmd')
+                stress_queue = self.tester.run_stress_thread(stress_cmd=stress_cmd, stress_num=1, stats_aggregate_cmds=False)
                 # wait for c-s to start
                 time.sleep(120)
             else:
                 new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
                                             instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
-        self.tester.get_stress_results(queue=stress_queue, store_results=False)
+        #self.tester.get_stress_results(queue=stress_queue, store_results=False)
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
         return new_nodes
@@ -4425,7 +4425,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 rack,
                 is_seed=None if self._is_it_on_kubernetes() else DefaultValue,
                 dc_idx=self.target_node.dc_idx,
-                exact_nodes=new_nodes[idx],
+                exact_nodes=[new_nodes[idx]],
             )
             self.disrupt_truncate(full_storage_utilization=True) if idx == 0 else None
 
