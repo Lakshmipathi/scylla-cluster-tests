@@ -28,6 +28,7 @@
 - EndOfQuotaNemesis
 - EnospcAllNodesMonkey
 - EnospcMonkey
+- FullStorageUtilizationNemesis
 - GrowShrinkClusterNemesis
 - GrowShrinkZeroTokenNode
 - HardRebootNodeMonkey
