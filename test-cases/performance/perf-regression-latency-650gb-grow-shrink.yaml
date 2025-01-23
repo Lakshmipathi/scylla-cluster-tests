@@ -1,12 +1,16 @@
 test_duration: 3000
-prepare_write_cmd: ["cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..162500000",
-                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=162500000..325000000",
-                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=325000000..487500000",
-                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=487500000..650000000"]
+pre_create_keyspace: [
+  "CREATE KEYSPACE IF NOT EXISTS ks_per_table_hints WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'replication_factor': 3 };",
+  "CREATE TABLE IF NOT EXISTS ks_per_table_hints.standard1 (key blob PRIMARY KEY, \"C0\" blob, \"C1\" blob, \"C2\" blob, \"C3\" blob, \"C4\" blob, \"C5\" blob, \"C6\" blob, \"C7\" blob);"
+]
+prepare_write_cmd: ["cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..162500000",
+                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=162500000..325000000",
+                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=325000000..487500000",
+                    "cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=487500000..650000000"]
 
-stress_cmd_w: "cassandra-stress write no-warmup cl=QUORUM duration=2850m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=20332/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
-stress_cmd_r: "cassandra-stress read no-warmup  cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=10310/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
-stress_cmd_m: "cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=8750/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,6500000)' "
+stress_cmd_w: "cassandra-stress write no-warmup cl=QUORUM duration=2850m -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=20332/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
+stress_cmd_r: "cassandra-stress read no-warmup  cl=QUORUM duration=800m -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=10310/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
+stress_cmd_m: "cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'keyspace=ks_per_table_hints  replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=250 fixed=8750/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,6500000)' "
 
 n_db_nodes: 3
 nemesis_add_node_cnt: 3
@@ -36,3 +40,4 @@ use_prepared_loaders: true
 use_hdr_cs_histogram: true
 email_subject_postfix: 'latency during grow-shrink'
 hinted_handoff: 'enabled'
+pre_create_schema: true

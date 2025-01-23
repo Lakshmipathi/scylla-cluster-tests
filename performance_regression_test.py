@@ -220,6 +220,11 @@ class PerformanceRegressionTest(ClusterTester):  # pylint: disable=too-many-publ
 
     @optional_stage('perf_preload_data')
     def preload_data(self, compaction_strategy=None):
+        prepare_schema = self.params.get('pre_create_schema')
+        if prepare_schema:
+            prepare_ks_cmds = self.params.get('pre_create_keyspace')
+            self.log.info("Execute prepare queries: %s", prepare_ks_cmds)
+            self._run_cql_commands(prepare_ks_cmds)
         # if test require a pre-population of data
         prepare_write_cmd = self.params.get('prepare_write_cmd')
         if prepare_write_cmd:
@@ -272,7 +277,12 @@ class PerformanceRegressionTest(ClusterTester):  # pylint: disable=too-many-publ
         for cmd in cmds:
             # pylint: disable=no-member
             with self.db_cluster.cql_connection_patient(node) as session:
+                self.log.info("Executing cql cmd: %s", cmd)
+                import time
+                time.sleep(30)
                 session.execute(cmd)
+                time.sleep(30)
+                self.log.info("Executed cql cmd: %s", cmd)
 
     def run_read_workload(self, nemesis=False):
         base_cmd_r = self.params.get('stress_cmd_r')
