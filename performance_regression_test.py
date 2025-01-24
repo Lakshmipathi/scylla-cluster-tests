@@ -225,6 +225,12 @@ class PerformanceRegressionTest(ClusterTester):  # pylint: disable=too-many-publ
 
     @optional_stage('perf_preload_data')
     def preload_data(self, compaction_strategy=None):
+        prepare_schema = self.params.get('pre_create_schema')
+        if prepare_schema:
+            prepare_ks_cmds = self.params.get('pre_create_keyspace')
+            self.log.info("Execute prepare queries: %s", prepare_ks_cmds)
+            self._run_cql_commands(prepare_ks_cmds)
+
         # if test require a pre-population of data
         prepare_write_cmd = self.params.get('prepare_write_cmd')
         if prepare_write_cmd:
