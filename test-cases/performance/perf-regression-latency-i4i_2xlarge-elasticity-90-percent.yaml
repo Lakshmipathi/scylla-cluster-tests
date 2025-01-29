@@ -2,7 +2,7 @@ test_duration: 3000
 pre_create_schema: true
 pre_create_keyspace: [
   "CREATE KEYSPACE IF NOT EXISTS keyspace1 WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'replication_factor': 3 };",
-  "CREATE TABLE IF NOT EXISTS keyspace1.standard1 (key blob PRIMARY KEY, \"C0\" blob, \"C1\" blob, \"C2\" blob, \"C3\" blob, \"C4\" blob, \"C5\" blob, \"C6\" blob, \"C7\" blob) WITH  tablet_hints = {'expected_data_size_in_gb': 256};"
+  "CREATE TABLE IF NOT EXISTS keyspace1.standard1 (key blob PRIMARY KEY, \"C0\" blob, \"C1\" blob, \"C2\" blob, \"C3\" blob, \"C4\" blob, \"C5\" blob, \"C6\" blob, \"C7\" blob) WITH  tablets = {'expected_data_size_in_gb': 512};"
 ]
 prepare_write_cmd: [
   "cassandra-stress write no-warmup cl=ALL n=300000000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..300000000",
@@ -38,9 +38,8 @@ backtrace_decoding: false
 print_kernel_callstack: true
 
 store_perf_results: true
+use_hdrhistogram: true
 email_recipients: ["scylla-perf-results@scylladb.com"]
-# use_prepared_loaders: true
-use_hdr_cs_histogram: true
 email_subject_postfix: 'fullstorage utilization test'
 nemesis_double_load_during_grow_shrink_duration: 0
 parallel_node_operations: false
@@ -49,5 +48,3 @@ append_scylla_yaml:
   enable_tablets: true
   auto_snapshot: false
 
-stress_image:
-  cassandra-stress: 'scylladb/cassandra-stress:3.17.0'
