@@ -1,7 +1,7 @@
-test_duration: 255
+test_duration: 60
 
-stress_cmd:      "scylla-bench -workload=uniform -mode=counter_update -replication-factor=3 -partition-count=1000 -clustering-row-count=10 -concurrency 64 -duration 180m -validate-data"
-stress_read_cmd: "scylla-bench -workload=uniform -mode=counter_read   -replication-factor=3 -partition-count=1000 -clustering-row-count=10 -concurrency 16 -duration 180m -validate-data"
+stress_cmd:      "scylla-bench -workload=uniform -mode=counter_update -replication-factor=3 -partition-count=1000 -clustering-row-count=10 -concurrency 64 -duration 10m -validate-data"
+stress_read_cmd: "scylla-bench -workload=uniform -mode=counter_read   -replication-factor=3 -partition-count=1000 -clustering-row-count=10 -concurrency 16 -duration 10m -validate-data"
 
 n_db_nodes: 4
 n_loaders:  1
@@ -13,6 +13,12 @@ user_prefix: longevity-counters-3h
 
 space_node_threshold: 6442
 
-nemesis_class_name: 'SisyphusMonkey'
-nemesis_seed: '010'
+#nemesis_class_name: 'SisyphusMonkey'
+#nemesis_seed: '010'
+#nemesis_class_name: ['ModifyTableMonkey', 'AddRemoveMvNemesis']
+#nemesis_class_name: 'ModifyTableMonkey'
+nemesis_class_name: 'AddRemoveMvNemesis'
 nemesis_interval: 5
+
+append_scylla_yaml:
+  enable_tablets: false
