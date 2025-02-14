@@ -5139,9 +5139,16 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                                                              primary_key_columns, session,
                                                              mv_columns=[column] + primary_key_columns)
                 except Exception as error:  # pylint: disable=broad-except
-                    self.log.warning('Failed creating a materialized view: %s', error)
-                    self.target_node.start_scylla()
-                    raise
+                    if (ks_name == "scylla_bench" and base_table_name == "test_counters" and
+                        "Materialized views are not supported on counter tables" in str(error)):
+                        self.log.error("Ignoring error for table %s.%s: %s", ks_name, base_table_name, error)
+                        self.target_node.start_scylla()
+                        raise UnsupportedNemesis(
+                        'Materialized views are not supported on counter tables')
+                    else:
+                        self.log.warning('Failed creating a materialized view: %s', error)
+                        self.target_node.start_scylla()
+                        raise
                 try:
                     self.log.info("Starting Scylla on node %s", self.target_node.name)
                     self.target_node.start_scylla()
