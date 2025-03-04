@@ -11,7 +11,7 @@ stress_cmd_w: "cassandra-stress write no-warmup cl=QUORUM n=335544320 -schema 'k
 
 stress_cmd_m: "cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=16875/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..600000000,300000000,6000000)'"
 
-simulated_racks: 3
+#simulated_racks: 3
 n_db_nodes: 3
 n_loaders: 4
 n_monitor_nodes: 1
