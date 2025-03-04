@@ -35,7 +35,7 @@ print_kernel_callstack: true
 store_perf_results: true
 email_recipients: ["scylla-perf-results@scylladb.com"]
 email_subject_postfix: 'fullstorage utilization test'
-parallel_node_operations: true
+parallel_node_operations: false
 
 append_scylla_yaml:
   enable_tablets: true
