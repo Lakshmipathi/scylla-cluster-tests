@@ -4379,6 +4379,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             exact_nodes=new_nodes,
         )
         num_of_nodes = len(self.cluster.data_nodes)
+
         self.log.info("Cluster shrink finished. Current number of data nodes %s", num_of_nodes)
         InfoEvent(message=f'Cluster shrink finished. Current number of data nodes {num_of_nodes}').publish()
 
@@ -4389,6 +4390,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         Finally Scale in cluster by removing nodes while maintaining high storage utilization.
         """
         sleep_time_between_ops = self.cluster.params.get('nemesis_sequence_sleep_between_ops')
+        self.log.info("--> racks_count: %s", self.cluster.racks_count)
         if not self.has_steady_run and sleep_time_between_ops:
             self.steady_state_latency()
             self.has_steady_run = True
@@ -4411,8 +4413,8 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         for idx in range(add_nodes_number):
             # if rack is not specified, round-robin racks to spread nodes evenly
             rack_idx = rack if rack is not None else idx % self.cluster.racks_count
-            if idx == 0:
-                new_nodes += self.add_new_nodes(count=3, rack=rack_idx,
+            if idx == 2:
+                new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
                                                 instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
                 # Before starting refilling data current c-s need to be stopped
                 self.tester.stop_load_during_nemesis()
@@ -4432,7 +4434,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 # wait for c-s to start
                 time.sleep(120)
             else:
-                new_nodes += self.add_new_nodes(count=3, rack=rack_idx,
+                new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
                                                instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
@@ -4449,14 +4451,17 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         InfoEvent(message=f'Start shrink cluster by {nodes_count} nodes').publish()
         self.log.info("Start shrink cluster by %s nodes", nodes_count)
         for idx in range(nodes_count):
+            rack_idx = rack if rack is not None else idx % self.cluster.racks_count
+            self.disrupt_truncate(True) if idx == 0 else None
             self._decommission_nodes(
-                3,
-                rack,
+                1,
+                rack_idx,
                 is_seed=None if self._is_it_on_kubernetes() else DefaultValue,
                 dc_idx=self.target_node.dc_idx,
                 exact_nodes=new_nodes,
             )
-            self.disrupt_truncate(True) if idx == 0 else None
+            num_of_nodes = len(self.cluster.data_nodes)
+            self.log.info("Current number of data nodes %s", num_of_nodes)
 
         num_of_nodes = len(self.cluster.data_nodes)
         self.log.info("Cluster shrink finished. Current number of data nodes %s", num_of_nodes)
