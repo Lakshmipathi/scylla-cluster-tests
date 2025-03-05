@@ -4393,9 +4393,9 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             self.steady_state_latency()
             self.has_steady_run = True
 
-        new_nodes = self.scaleout_at_full_storage(rack=3)
+        new_nodes = self.scaleout_at_full_storage(rack=None)
         #new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
-        self.scalein_to_reach_full_storage(rack=3, new_nodes=new_nodes)
+        self.scalein_to_reach_full_storage(rack=None, new_nodes=new_nodes)
 
     def scaleout_at_full_storage(self, rack=None):
         """
