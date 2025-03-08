@@ -12,23 +12,23 @@ prepare_write_cmd: [
   "cassandra-stress write no-warmup cl=ALL n=300000000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1200000001..1500000000",
 ]
 
-stress_cmd_w: "cassandra-stress write no-warmup cl=ALL n=335544320 -schema 'keyspace=refill_keyspace replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=300 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1500000001..1835544321"
+stress_cmd_w: "cassandra-stress write no-warmup cl=QUORUM n=335544320 -schema 'keyspace=refill_keyspace replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=300 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1500000001..1835544321"
 stress_cmd_m: "cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=16875/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..600000000,300000000,6000000)'"
 
 
+simulated_racks: 3
 n_db_nodes: 3
-nemesis_add_node_cnt: 2
 n_loaders: 4
 n_monitor_nodes: 1
-nemesis_grow_shrink_instance_type: 'i4i.2xlarge'
 
 instance_type_loader: 'c6i.2xlarge'
 instance_type_monitor: 't3.large'
 instance_type_db: 'i4i.2xlarge'
 
 nemesis_class_name: 'FullStorageUtilizationNemesis'
-nemesis_interval: 30
 nemesis_sequence_sleep_between_ops: 10
+nemesis_add_node_cnt: 3
+nemesis_grow_shrink_instance_type: 'i4i.2xlarge'
 
 user_prefix: 'fullstorage-utilization-test'
 
@@ -41,7 +41,6 @@ store_perf_results: true
 use_hdrhistogram: true
 email_recipients: ["scylla-perf-results@scylladb.com"]
 email_subject_postfix: 'fullstorage utilization test'
-nemesis_double_load_during_grow_shrink_duration: 0
 parallel_node_operations: false
 
 append_scylla_yaml:

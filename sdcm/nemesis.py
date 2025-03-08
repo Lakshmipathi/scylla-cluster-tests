@@ -226,7 +226,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     manager_operation: bool = False  # flag that signals that the nemesis uses scylla manager
     delete_rows: bool = False  # A flag denotes a nemesis deletes partitions/rows, generating tombstones.
     zero_node_changes: bool = False
-    full_storage_utilization: bool = False
 
     def __init__(self, tester_obj, termination_event, *args, nemesis_selector=None, nemesis_seed=None, **kwargs):  # pylint: disable=unused-argument
         for name, member in inspect.getmembers(self, lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
@@ -2106,11 +2105,11 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         # NOTE: 'self' is used by the 'scylla_versions' decorator
         return ''
 
-    def disrupt_truncate(self, full_storage_utilization=False):
-        keyspace_truncate = 'ks_truncate' if not full_storage_utilization else 'refill_keyspace'
+    def disrupt_truncate(self, refill_keyspace=False):
+        keyspace_truncate = 'ks_truncate' if not refill_keyspace else 'refill_keyspace'
         table = 'standard1'
 
-        self._prepare_test_table(ks=keyspace_truncate) if not full_storage_utilization else None
+        self._prepare_test_table(ks=keyspace_truncate) if not refill_keyspace else None
 
         # In order to workaround issue #4924 when truncate timeouts, we try to flush before truncate.
         with adaptive_timeout(Operations.FLUSH, self.target_node, timeout=HOUR_IN_SEC * 2):
@@ -4261,6 +4260,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.monitoring_set.reconfigure_scylla_monitoring()
         InfoEvent(f'FinishEvent - ShrinkCluster has done decommissioning {len(nodes)} nodes').publish()
 
+    @latency_calculator_decorator(legend="Decommission nodes: remove nodes from cluster")
     def _decommission_nodes(self, nodes_number, rack, is_seed: Optional[Union[bool, DefaultValue]] = DefaultValue,
                             dc_idx: Optional[int] = None, exact_nodes: list[BaseNode] | None = None):
         nodes_to_decommission = []
@@ -4380,6 +4380,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             exact_nodes=new_nodes,
         )
         num_of_nodes = len(self.cluster.data_nodes)
+
         self.log.info("Cluster shrink finished. Current number of data nodes %s", num_of_nodes)
         InfoEvent(message=f'Cluster shrink finished. Current number of data nodes {num_of_nodes}').publish()
 
@@ -4390,12 +4391,13 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         Finally Scale in cluster by removing nodes while maintaining high storage utilization.
         """
         sleep_time_between_ops = self.cluster.params.get('nemesis_sequence_sleep_between_ops')
+        self.log.info("--> racks_count: %s", self.cluster.racks_count)
         if not self.has_steady_run and sleep_time_between_ops:
             self.steady_state_latency()
             self.has_steady_run = True
 
         new_nodes = self.scaleout_at_full_storage(rack=None)
-        new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
+        #new_nodes = new_nodes if self.tester.params.get('nemesis_grow_shrink_instance_type') else None
         self.scalein_to_reach_full_storage(rack=None, new_nodes=new_nodes)
 
     def scaleout_at_full_storage(self, rack=None):
@@ -4412,7 +4414,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         for idx in range(add_nodes_number):
             # if rack is not specified, round-robin racks to spread nodes evenly
             rack_idx = rack if rack is not None else idx % self.cluster.racks_count
-            if idx == 0:
+            if idx == 2:
                 new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
                                                 instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
                 # Before starting refilling data current c-s need to be stopped
@@ -4434,7 +4436,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 time.sleep(120)
             else:
                 new_nodes += self.add_new_nodes(count=1, rack=rack_idx,
-                                                instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
+                                               instance_type=self.tester.params.get('nemesis_grow_shrink_instance_type'))
         self.log.info("Finish cluster grow")
         time.sleep(self.interval)
         return new_nodes
@@ -4450,14 +4452,17 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         InfoEvent(message=f'Start shrink cluster by {nodes_count} nodes').publish()
         self.log.info("Start shrink cluster by %s nodes", nodes_count)
         for idx in range(nodes_count):
+            rack_idx = rack if rack is not None else idx % self.cluster.racks_count
+            self.disrupt_truncate(True) #if idx == 0 else None
             self._decommission_nodes(
                 1,
-                rack,
+                rack_idx,
                 is_seed=None if self._is_it_on_kubernetes() else DefaultValue,
                 dc_idx=self.target_node.dc_idx,
-                exact_nodes=[new_nodes[idx]],
+                exact_nodes=new_nodes,
             )
-            self.disrupt_truncate(full_storage_utilization=True) if idx == 0 else None
+            num_of_nodes = len(self.cluster.data_nodes)
+            self.log.info("Current number of data nodes %s", num_of_nodes)
 
         num_of_nodes = len(self.cluster.data_nodes)
         self.log.info("Cluster shrink finished. Current number of data nodes %s", num_of_nodes)
@@ -5761,7 +5766,6 @@ class FullStorageUtilizationNemesis(Nemesis):
     It measures latency under mixed-load stress during these operations.
     """
     disruptive = False
-    full_storage_utilization = True
 
     def disrupt(self):
         self.disrupt_full_storage_utilization()
