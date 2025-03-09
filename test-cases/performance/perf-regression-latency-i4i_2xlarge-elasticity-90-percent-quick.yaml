@@ -2,7 +2,7 @@ test_duration: 3000
 pre_create_schema: true
 pre_create_keyspace: [
   "CREATE KEYSPACE IF NOT EXISTS keyspace1 WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'replication_factor': 3 };",
-  "CREATE TABLE IF NOT EXISTS keyspace1.standard1 (key blob PRIMARY KEY, \"C0\" blob, \"C1\" blob, \"C2\" blob, \"C3\" blob, \"C4\" blob, \"C5\" blob, \"C6\" blob, \"C7\" blob) WITH  tablets = {'expected_data_size_in_gb': 10};"
+  "CREATE TABLE IF NOT EXISTS keyspace1.standard1 (key blob PRIMARY KEY, \"C0\" blob, \"C1\" blob, \"C2\" blob, \"C3\" blob, \"C4\" blob, \"C5\" blob, \"C6\" blob, \"C7\" blob) WITH  tablets = {'expected_data_size_in_gb': 10, 'min_per_shard_tablet_count': 64};"
 ]
 prepare_write_cmd: [
     "cassandra-stress write no-warmup cl=ALL n=7864320 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=200 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..7864320",    

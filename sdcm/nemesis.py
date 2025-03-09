@@ -4260,7 +4260,6 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.monitoring_set.reconfigure_scylla_monitoring()
         InfoEvent(f'FinishEvent - ShrinkCluster has done decommissioning {len(nodes)} nodes').publish()
 
-    @latency_calculator_decorator(legend="Decommission nodes: remove nodes from cluster")
     def _decommission_nodes(self, nodes_number, rack, is_seed: Optional[Union[bool, DefaultValue]] = DefaultValue,
                             dc_idx: Optional[int] = None, exact_nodes: list[BaseNode] | None = None):
         nodes_to_decommission = []
