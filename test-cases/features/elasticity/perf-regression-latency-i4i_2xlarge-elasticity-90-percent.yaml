@@ -10,7 +10,7 @@ prepare_write_cmd: [
 stress_cmd_w: "cassandra-stress write no-warmup cl=ALL n=335544320 -schema 'keyspace=refill_keyspace replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=300 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1500000001..1835544321"
 stress_cmd_m: "cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=16875/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..600000000,300000000,6000000)'"
 
-simulated_racks: 3
+#simulated_racks: 3
 n_db_nodes: 3
 n_loaders: 4
 n_monitor_nodes: 1
@@ -35,10 +35,9 @@ store_perf_results: true
 email_recipients: ["scylla-perf-results@scylladb.com"]
 email_subject_postfix: 'fullstorage utilization test'
 parallel_node_operations: false
+use_hdrhistogram: true
 
 append_scylla_yaml:
   enable_tablets: true
   auto_snapshot: false
 
-stress_image:
-  cassandra-stress: 'scylladb/cassandra-stress:3.17.2'
