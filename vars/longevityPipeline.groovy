@@ -20,8 +20,21 @@ def call(Map pipelineParams) {
             SCT_TEST_ID = UUID.randomUUID().toString()
             SCT_GCE_PROJECT = "${params.gce_project}"
         }
-        parameters {
-            separator(name: "para1")            
+        parameters {            
+            separator(name: "BUILD_ENVIRONMENT", sectionHeader: "Build Environment",
+		separatorStyle: "border-width: 0",
+		sectionHeaderStyle: """
+			background-color: #7ea6d3;
+			text-align: center;
+			padding: 4px;
+			color: #343434;
+			font-size: 22px;
+			font-weight: normal;
+			text-transform: uppercase;
+			font-family: 'Orienta', sans-serif;
+			letter-spacing: 1px;
+			font-style: italic;
+		""")
             string(defaultValue: "${pipelineParams.get('backend', 'aws')}",
                description: 'aws|gce|azure|docker',
                name: 'backend')
