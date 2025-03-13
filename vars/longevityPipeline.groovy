@@ -21,6 +21,7 @@ def call(Map pipelineParams) {
             SCT_GCE_PROJECT = "${params.gce_project}"
         }
         parameters {
+            separator(name: "para1")            
             string(defaultValue: "${pipelineParams.get('backend', 'aws')}",
                description: 'aws|gce|azure|docker',
                name: 'backend')
@@ -38,6 +39,7 @@ def call(Map pipelineParams) {
                description: 'Availability zone',
                name: 'availability_zone')
 
+            separator(name: "para2")            
             string(defaultValue: "",
                description: 'Duration in minutes for stress commands(gemini, c-s, s-b)',
                name: 'stress_duration')
@@ -51,6 +53,7 @@ def call(Map pipelineParams) {
             string(defaultValue: '', description: '', name: 'gce_image_db')
             string(defaultValue: '', description: '', name: 'azure_image_db')
 
+            separator(name: "para3")            
             string(defaultValue: '',
                    description: 'cloud path for RPMs, s3:// or gs://',
                    name: 'update_db_packages')
@@ -80,6 +83,7 @@ def call(Map pipelineParams) {
                    description: 'keep|keep-on-failure|destroy',
                    name: 'post_behavior_k8s_cluster')
 
+            separator(name: "para4")            
             string(defaultValue: "${pipelineParams.get('ip_ssh_connections', 'private')}",
                    description: 'private|public|ipv6',
                    name: 'ip_ssh_connections')
@@ -107,6 +111,7 @@ def call(Map pipelineParams) {
             string(defaultValue: '', description: 'run gemini job with specific gemini seed number',
                    name: "gemini_seed")
 
+            separator(name: "para5")            
             string(defaultValue: "${pipelineParams.get('pytest_addopts', '')}",
                    description: (
                         '"pytest_addopts" is used by "run_pytest" hydra command. \n' +
