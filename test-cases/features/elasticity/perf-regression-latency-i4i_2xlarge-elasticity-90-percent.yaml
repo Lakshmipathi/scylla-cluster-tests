@@ -36,7 +36,7 @@ store_perf_results: true
 use_hdrhistogram: true
 email_recipients: ["scylla-perf-results@scylladb.com"]
 email_subject_postfix: 'fullstorage utilization test'
-parallel_node_operations: false
+parallel_node_operations: true
 
 append_scylla_yaml:
   enable_tablets: true
