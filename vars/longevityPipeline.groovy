@@ -3,6 +3,8 @@
 def completed_stages = [:]
 def (testDuration, testRunTimeout, runnerTimeout, collectLogsTimeout, resourceCleanupTimeout) = [0,0,0,0,0]
 
+@Library('addSeparator') _
+
 def call(Map pipelineParams) {
 
     def builder = getJenkinsLabels(params.backend, params.region, params.gce_datacenter, params.azure_region_name)
@@ -51,8 +53,8 @@ def call(Map pipelineParams) {
             string(defaultValue: "${pipelineParams.get('availability_zone', 'a')}",
                description: 'Availability zone',
                name: 'availability_zone')
-
-            separator(name: "para2")            
+            
+            addSeparator(name: "Cassandra", sectionHeader: "Cassandra tool options")
             string(defaultValue: "",
                description: 'Duration in minutes for stress commands(gemini, c-s, s-b)',
                name: 'stress_duration')
@@ -198,7 +200,7 @@ def call(Map pipelineParams) {
             string(defaultValue: 'next',
                    description: 'Default branch to be used for scylla and other repositories. Default is "next".',
                    name: 'byo_default_branch')
-        }
+	}
         options {
             timestamps()
             disableConcurrentBuilds()
