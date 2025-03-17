@@ -42,7 +42,19 @@ def call(Map pipelineParams) {
 
 	    choice(name: 'ID_TYPE', choices: ['ami-id', 'gcp-id', 'azure-id'],description: 'Select the type of ID')
             string(name: 'ID_VALUE', defaultValue: '', description: 'Enter the ID value')
-
+            activeChoice(name: 'ID_TYPE', choices: ['ami-id', 'gcp-id', 'azure-id'], description: 'Select the type of ID' )
+	    activeChoiceReactive(
+        	    name: 'ID_VALUE', description: 'Enter the ID value', referencedParameters: 'ID_TYPE',
+	            script: """
+        	        if (ID_TYPE == 'ami-id') {
+        	            return 'Enter AMI ID'
+        	        } else if (ID_TYPE == 'gcp-id') {
+        	            return 'Enter GCP ID'
+        	        } else if (ID_TYPE == 'azure-id') {
+        	            return 'Enter Azure ID'
+        	        }
+        	    """
+	        )
             string(defaultValue: "${pipelineParams.get('region', 'eu-west-1')}",
                description: 'Supported: us-east-1 | eu-west-1 | eu-west-2 | eu-north-1 | eu-central-1 | us-west-2 | random (randomly select region)',
                name: 'region')
