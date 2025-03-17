@@ -3,7 +3,6 @@
 def completed_stages = [:]
 def (testDuration, testRunTimeout, runnerTimeout, collectLogsTimeout, resourceCleanupTimeout) = [0,0,0,0,0]
 
-@Library('addSeparator') _
 
 def call(Map pipelineParams) {
 
@@ -41,6 +40,9 @@ def call(Map pipelineParams) {
                description: 'aws|gce|azure|docker',
                name: 'backend')
 
+	    choice(name: 'ID_TYPE', choices: ['ami-id', 'gcp-id', 'azure-id'],description: 'Select the type of ID')
+            string(name: 'ID_VALUE', defaultValue: '', description: 'Enter the ID value')
+
             string(defaultValue: "${pipelineParams.get('region', 'eu-west-1')}",
                description: 'Supported: us-east-1 | eu-west-1 | eu-west-2 | eu-north-1 | eu-central-1 | us-west-2 | random (randomly select region)',
                name: 'region')
@@ -54,7 +56,7 @@ def call(Map pipelineParams) {
                description: 'Availability zone',
                name: 'availability_zone')
             
-            addSeparator(name: "Cassandra", sectionHeader: "Cassandra tool options")
+            separator(name: "para2")            
             string(defaultValue: "",
                description: 'Duration in minutes for stress commands(gemini, c-s, s-b)',
                name: 'stress_duration')
