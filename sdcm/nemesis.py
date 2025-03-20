@@ -701,6 +701,15 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             self.log.info('Waiting JMX services to be restarted after we killed them...')
             self.target_node.wait_jmx_up()
         self.cluster.wait_for_schema_agreement()
+        
+    def _sigquit_scylla_daemon(self):
+            self.log.info('Sending SIGQUIT all scylla processes in %s', self.target_node)
+            self.target_node.remoter.sudo("pkill -3 scylla", ignore_status=True)
+            # Wait for the process to be down 
+            self.target_node.wait_db_down(check_interval=2)
+            
+            #TODO: Validate diagnosis data
+            
 
     @decorate_with_context(ignore_raft_topology_cmd_failing)
     @target_all_nodes
@@ -1742,6 +1751,14 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @target_all_nodes
     def disrupt_kill_scylla(self):
         self._kill_scylla_daemon()
+
+    def disrupt_sigquit_scylla(self):
+        stress_cmd = self.tester.params.get('stress_cmd')
+        stress_queue = self.tester.run_stress_thread(
+            stress_cmd=stress_cmd, stress_num=1, stats_aggregate_cmds=False)
+        # Wait for 5 mins before sending signal
+        time.sleep(300)
+        self._sigquit_scylla_daemon()
 
     def disrupt_no_corrupt_repair(self):
 
@@ -6609,6 +6626,15 @@ class OperatorNodetoolFlushAndReshard(Nemesis):
 
     def disrupt(self):
         self.disrupt_nodetool_flush_and_reshard_on_kubernetes()
+
+
+class ScyllaDumpDiagnosis(Nemesis):
+    disruptive = True
+    kubernetes = False
+    topology_changes = True
+
+    def disrupt(self):
+        self.disrupt_sigquit_scylla()
 
 
 class ScyllaKillMonkey(Nemesis):
