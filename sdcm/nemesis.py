@@ -7116,11 +7116,11 @@ class AddRemoveMvNemesis(Nemesis):
 
 
 class ToggleAuditNemesisSyslog(Nemesis):
-    disruptive = True
+    disruptive = False
     supports_high_disk_utilization = True
-    schema_changes = True
-    config_changes = True
-    free_tier_set = True
+    schema_changes = False
+    config_changes = False
+    free_tier_set = False
 
     def disrupt(self):
         self.disrupt_toggle_audit_syslog()
