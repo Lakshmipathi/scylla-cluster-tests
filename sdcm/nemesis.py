@@ -5271,6 +5271,7 @@ class Nemesis:  # pylint: disable=too-many-instance-attributes,too-many-public-m
             reduce categories by excluding DML and QUERY,
             verify DDL are logged in audit log correctly. Leaves audit log enabled this way.
         """
+        raise UnsupportedNemesis("Auditing feature is only supported by Scylla Enterprise")
         if not self.target_node.is_enterprise:
             raise UnsupportedNemesis("Auditing feature is only supported by Scylla Enterprise")
 
@@ -7116,11 +7117,11 @@ class AddRemoveMvNemesis(Nemesis):
 
 
 class ToggleAuditNemesisSyslog(Nemesis):
-    disruptive = False
+    disruptive = True
     supports_high_disk_utilization = True
-    schema_changes = False
-    config_changes = False
-    free_tier_set = False
+    schema_changes = True
+    config_changes = True
+    free_tier_set = True
 
     def disrupt(self):
         self.disrupt_toggle_audit_syslog()
