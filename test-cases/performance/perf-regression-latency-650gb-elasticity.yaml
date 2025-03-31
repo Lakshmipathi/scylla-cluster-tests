@@ -31,7 +31,7 @@ backtrace_decoding: false
 print_kernel_callstack: true
 
 store_perf_results: true
-email_recipients: ["scylla-perf-results@scylladb.com"]
+email_recipients: ["lakshmipathi.ganapathi@scylladb.com"]
 use_prepared_loaders: true
 use_hdrhistogram: true
 email_subject_postfix: 'elasticity test'
