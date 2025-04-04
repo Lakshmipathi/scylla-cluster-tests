@@ -1,11 +1,11 @@
-prepare_write_cmd: ["cql-stress-cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=500 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..162500000",
-                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=500 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=162500000..325000000",
-                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=500 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=325000000..487500000",
-                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=162500000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=500 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=487500000..650000000"]
+prepare_write_cmd: ["cql-stress-cassandra-stress write no-warmup cl=ALL n=40625000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=125 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=1..40625000",
+                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=40625000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=125 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=40625000..81250000",
+                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=40625000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=125 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=81250000..121875000",
+                    "cql-stress-cassandra-stress write no-warmup cl=ALL n=40625000 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate threads=125 -col 'size=FIXED(128) n=FIXED(8)' -pop seq=121875000..162500000"]
+instance_type_db: 'i4i.large'
 
-instance_type_db: 'i4i.2xlarge'
-# throttling to reach 80% throughput is not verified
-stress_cmd_w: "cql-stress-cassandra-stress write no-warmup cl=QUORUM duration=2850m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=24000/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
-stress_cmd_r: "cql-stress-cassandra-stress read no-warmup  cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=20000/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,9750000)' "
-stress_cmd_m: "cql-stress-cassandra-stress mixed no-warmup cl=QUORUM duration=800m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=300 fixed=17000/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..650000000,325000000,6500000)' "
+stress_cmd_w: "cql-stress-cassandra-stress write no-warmup cl=QUORUM duration=80m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=75 fixed=6000/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..162500000,81250000,2437500)' "
+stress_cmd_r: "cql-stress-cassandra-stress read no-warmup  cl=QUORUM duration=80m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=75 fixed=5000/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..162500000,81250000,2437500)' "
+stress_cmd_m: "cql-stress-cassandra-stress mixed no-warmup cl=QUORUM duration=80m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' -mode cql3 native -rate 'threads=75 fixed=4250/s' -col 'size=FIXED(128) n=FIXED(8)' -pop 'dist=gauss(1..162500000,81250000,1625000)' "
+use_hdrhistogram: false  # https://github.com/scylladb/cql-stress/issues/95
 use_prepared_loaders: false  # no need for that - using docker anyway
