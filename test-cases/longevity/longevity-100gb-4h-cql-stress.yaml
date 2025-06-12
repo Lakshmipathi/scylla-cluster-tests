@@ -6,12 +6,12 @@ stress_cmd: ["cql-stress-cassandra-stress write cl=QUORUM duration=240m -schema 
              "cql-stress-cassandra-stress read  cl=QUORUM duration=240m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=40 -pop seq=1..20971520 -col 'n=FIXED(10) size=FIXED(512)' -log interval=5"
              ]
 
-n_db_nodes: 6
+n_db_nodes: 3
 n_loaders: 1
 seeds_num: 3
 simulated_racks: 3
 
-instance_type_db: 'i4i.4xlarge'
+instance_type_db: 'i4i.2xlarge'
 
 nemesis_class_name: 'SisyphusMonkey'
 nemesis_seed: '032'
@@ -27,3 +27,21 @@ sstable_size: 100
 
 hinted_handoff: 'enabled'
 parallel_node_operations: true
+
+append_scylla_yaml:
+  gcp_hosts:
+      my_test_gcp:
+         gcp_project_id: 'sct-project-1'
+         gcp_location: 'us-east1'
+         master_key: 'demo-keyring/master-key'
+  system_info_encryption:
+    enabled: true
+    cipher_algorithm: 'AES/CBC/PKCS5Padding'
+    secret_key_strength: 128
+    key_provider: 'GcpKeyProviderFactory'
+    gcp_host: 'my_test_gcp'
+  user_info_encryption:
+    enabled: true
+    key_provider: 'GcpKeyProviderFactory'
+    gcp_host: 'my_test_gcp'
+
