@@ -71,7 +71,22 @@ class KeyStore:
 
     def get_gcp_service_accounts(self):
         project = os.environ.get('SCT_GCE_PROJECT') or 'gcp-sct-project-1'
-        return self.get_json(f"{project}_service_accounts.json")
+        try:
+            service_accounts = self.get_json(f"{project}_service_accounts.json")
+            # Ensure all service accounts have cloud-platform scope for KMS support
+            for sa in service_accounts:
+                if 'scopes' not in sa or not sa['scopes']:
+                    sa['scopes'] = ['https://www.googleapis.com/auth/cloud-platform']
+                elif 'https://www.googleapis.com/auth/cloud-platform' not in sa['scopes']:
+                    # Add cloud-platform scope if missing
+                    sa['scopes'].append('https://www.googleapis.com/auth/cloud-platform')
+            return service_accounts
+        except FileNotFoundError:
+            # Default service account configuration with cloud-platform scope for KMS support
+            return [{
+                'email': f'sct-manager-backup@{project}.iam.gserviceaccount.com',
+                'scopes': ['https://www.googleapis.com/auth/cloud-platform']
+            }]
 
     def get_scylladb_upload_credentials(self):
         return self.get_json("scylladb_upload.json")
