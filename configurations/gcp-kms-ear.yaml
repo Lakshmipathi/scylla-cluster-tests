@@ -1,0 +1,21 @@
+
+scylla_encryption_options: "{ 'cipher_algorithm' : 'AES/ECB/PKCS5Padding', 'secret_key_strength' : 128, 'key_provider': 'GcpKeyProviderFactory', 'gcp_host': 'my_test_gcp'}"
+
+# enable system_info_encryption, config gcp_hosts
+append_scylla_yaml:
+  gcp_hosts:
+      my_test_gcp:
+         gcp_project_id: 'scylla-kms-test-462610'
+         gcp_location: 'global'
+         gcp_credentials_file: '/etc/scylla/gcp_auth_file.json'
+         master_key: 'demo-keyring/master-key'
+  system_info_encryption:
+    enabled: true
+    cipher_algorithm: 'AES/CBC/PKCS5Padding'
+    secret_key_strength: 128
+    key_provider: 'GcpKeyProviderFactory'
+    gcp_host: 'my_test_gcp'
+  user_info_encryption:
+    enabled: true
+    key_provider: 'GcpKeyProviderFactory'
+    gcp_host: 'my_test_gcp'
