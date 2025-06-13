@@ -1,0 +1,13 @@
+#!groovy
+
+// trick from https://github.com/jenkinsci/workflow-cps-global-lib-plugin/pull/43
+def lib = library identifier: 'sct@snapshot', retriever: legacySCM(scm)
+
+longevityPipeline(
+    backend: 'gcp',
+    region: 'us-east-1',
+    availability_zone: 'c',
+    test_name: 'longevity_simple_test.SimpleLongevityTest.test_simple_longevity',
+    test_config: 'test-cases/longevity/longevity-simple-15min.yaml',
+    instance_provision_fallback_on_demand: true
+)
