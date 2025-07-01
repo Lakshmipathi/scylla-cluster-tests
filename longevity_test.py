@@ -22,6 +22,7 @@ import contextlib
 from typing import List, Dict
 
 import yaml
+import time
 from cassandra import AlreadyExists, InvalidRequest
 from cassandra.query import SimpleStatement
 
@@ -126,6 +127,8 @@ class LongevityTest(ClusterTester, loader_utils.LoaderUtilsMixin):
         """
         Run cassandra-stress with params defined in data_dir/scylla.yaml
         """
+        self.log.info("Wait for 10mins")
+        time.sleep(6)
 
         self.db_cluster.add_nemesis(nemesis=self.get_nemesis_class(),
                                     tester_obj=self)

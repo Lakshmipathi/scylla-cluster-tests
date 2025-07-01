@@ -30,6 +30,10 @@ from sdcm.utils.azure_utils import AzureService
 
 LOGGER = logging.getLogger(__name__)
 
+EXISTING_IDENTITY_ID = "/subscriptions/6c268694-47ab-43ab-b306-3c5514bc4112/resourcegroups/qa_azure_key_vault/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myManagedIdentity"
+EXISTING_VAULT_URI = "https://azure-vault-qa.vault.azure.net/"
+ENCRYPTION_KEY_NAME = "key1"
+FULL_KEY_URI = "https://azure-vault-qa.vault.azure.net/keys/key1/4527250de755484e86ddfd911a6905a3"
 
 @dataclass
 class VirtualMachineProvider:
@@ -80,6 +84,10 @@ class VirtualMachineProvider:
                     }],
                 },
             }
+            
+            params["identity"] = {"type": "UserAssigned","user_assigned_identities": {EXISTING_IDENTITY_ID: {}}}
+            LOGGER.info(f"Added Key Vault identity to VM: {definition.name}")
+
             if definition.user_data is None:
                 # in case we use specialized image, we don't change things like computer_name, usernames, ssh_keys
                 os_profile = {}
