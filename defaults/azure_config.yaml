@@ -9,8 +9,11 @@ azure_instance_type_db: 'Standard_L8s_v3'
 azure_instance_type_loader: 'Standard_F4s_v2'
 azure_instance_type_monitor: 'Standard_D2_v4'
 # get images urn's by running: `az vm image list --output table --all --offer CentOS --publisher OpenLogic`
-azure_image_loader: 'Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202208100'
-azure_image_monitor: 'Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202208100'
+azure_image_loader:  'Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:22.04.202506200'
+azure_image_monitor: 'Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:22.04.202506200'
+
+
+
 
 availability_zone: ''
 root_disk_size_monitor: 50  # GB, remove this field if default disk size should be used
@@ -32,3 +35,7 @@ data_volume_disk_num: 0
 data_volume_disk_type: 'gp2'
 data_volume_disk_size: 500
 data_volume_disk_iops: 10000 # depend on type iops could be 100-16000 for io2|io3 and 3000-16000 for gp3
+
+
+
+

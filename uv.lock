@@ -298,6 +298,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-msi"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common", marker = "sys_platform != 'win32'" },
+    { name = "azure-mgmt-core", marker = "sys_platform != 'win32'" },
+    { name = "msrest", marker = "sys_platform != 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/d7/4ef788fb8e0f90a3fe5875b05dcef535ad4b4a766372af82870120cd5dd3/azure-mgmt-msi-7.0.0.zip", hash = "sha256:72d46c9a62783ec4eab619be9d1b78ffebbdaa164d406fd303f16303f37256b2", size = 199895, upload-time = "2023-02-02T08:11:15.5Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/a7/49c140940651d4f4209e2bbdd6e639134b7cf4354ef44e287796f3eac32a/azure_mgmt_msi-7.0.0-py3-none-any.whl", hash = "sha256:bbec45bbaa021cb935a1b84f94e160841722a8073d193783e7f458ba476fbc56", size = 183398, upload-time = "2023-02-02T08:11:12.779Z" },
+]
+
+[[package]]
 name = "azure-mgmt-network"
 version = "28.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3160,6 +3174,7 @@ dependencies = [
     { name = "awscli", marker = "sys_platform != 'win32'" },
     { name = "azure-identity", marker = "sys_platform != 'win32'" },
     { name = "azure-mgmt-compute", marker = "sys_platform != 'win32'" },
+    { name = "azure-mgmt-msi", marker = "sys_platform != 'win32'" },
     { name = "azure-mgmt-network", marker = "sys_platform != 'win32'" },
     { name = "azure-mgmt-resource", marker = "sys_platform != 'win32'" },
     { name = "azure-mgmt-resourcegraph", marker = "sys_platform != 'win32'" },
@@ -3224,6 +3239,7 @@ requires-dist = [
     { name = "awscli", specifier = "==1.29.4" },
     { name = "azure-identity", specifier = "==1.16.1" },
     { name = "azure-mgmt-compute", specifier = "==33.1.0" },
+    { name = "azure-mgmt-msi", specifier = "==7.0.0" },
     { name = "azure-mgmt-network", specifier = "==28.1.0" },
     { name = "azure-mgmt-resource", specifier = "==23.2.0" },
     { name = "azure-mgmt-resourcegraph", specifier = "==8.0.0" },

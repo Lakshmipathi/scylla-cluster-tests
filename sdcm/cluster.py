@@ -555,6 +555,16 @@ class BaseNode(AutoSshContainerMixin):
             for kms_host_name, kms_host_data in append_scylla_yaml.get("kms_hosts", {}).items():
                 if kms_host_data["aws_region"] == "auto":
                     append_scylla_yaml["kms_hosts"][kms_host_name]["aws_region"] = self.vm_region
+                    
+            azure_hosts = append_scylla_yaml.get("azure_hosts", {})
+            vault = azure_hosts.get("scylla-dynamic-vault", {})
+            if vault.get("master_key") == "KEYVAULT_URI_PLACEHOLDER":
+                test_id_prefix = self.test_config.test_id().split('-')[0][:8]
+                vault["master_key"] = f"https://scylla{test_id_prefix}kv.vault.azure.net/scylla-key"
+                LOGGER.info(f"Scylla config has azure vault URI: {vault['master_key']}")
+            else:
+                LOGGER.info(f"Scylla config already has azure vault URI: {vault['master_key']}")
+                
             scylla_yml.update(append_scylla_yaml)
         if self.parent_cluster.node_type == "oracle-db":
             scylla_yml.experimental_features = []  # Oracle Scylla does not use experimental features

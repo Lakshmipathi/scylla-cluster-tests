@@ -30,6 +30,7 @@ from sdcm.provision.azure.virtual_network_provider import VirtualNetworkProvider
 from sdcm.provision.provisioner import Provisioner, InstanceDefinition, VmInstance, PricingModel, OperationPreemptedError
 from sdcm.provision.security import ScyllaOpenPorts
 from sdcm.utils.azure_utils import AzureService
+from sdcm.test_config import TestConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -232,3 +233,5 @@ class AzureProvisioner(Provisioner):
         else:
             pricing_model = PricingModel.SPOT
         return pricing_model
+        
+
