@@ -24,6 +24,7 @@ from azure.core.exceptions import ResourceNotFoundError, AzureError, ODataV4Erro
 from azure.mgmt.compute.models import VirtualMachine, RunCommandInput
 from invoke import Result
 
+from sdcm.provision.azure.kms_provider import KmsProvider
 from sdcm.provision.provisioner import InstanceDefinition, PricingModel, ProvisionError, OperationPreemptedError
 from sdcm.provision.user_data import UserDataBuilder
 from sdcm.utils.azure_utils import AzureService
@@ -49,54 +50,7 @@ class VirtualMachineProvider:
         except ResourceNotFoundError:
             pass
             
-    def _get_or_create_keyvault_and_identity(self):
-        """Create dynamic vault with existing identity"""
-        vault_name = f"scylla{self._resource_group_name.split('-')[1][:8]}kv"[:24]
-        existing_identity_id = "/subscriptions/6c268694-47ab-43ab-b306-3c5514bc4112/resourcegroups/qa_azure_key_vault/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myManagedIdentity"
-        existing_principal_id = "0b5c8c2a-faa1-41d8-ab2d-e9605c2b8654"
-        try:        
-            # Create vault
-            vault = self._azure_service.keyvault.vaults.begin_create_or_update(
-                resource_group_name=self._resource_group_name, vault_name=vault_name,
-                parameters={
-                "location": self._region,
-                "properties": {
-                    "tenant_id": self._azure_service.azure_credentials["tenant_id"],
-                    "sku": {"name": "standard", "family": "A"},
-                    "enabled_for_disk_encryption": True,
-                    "enable_rbac_authorization": False, 
-                    "access_policies": [{
-                        "tenant_id": self._azure_service.azure_credentials["tenant_id"],
-                        "object_id": existing_principal_id,
-                        "permissions": {
-                            "keys": ["get", "encrypt", "decrypt", "wrapKey", "unwrapKey"],
-                            "secrets": ["get"],
-                            "certificates": ["get"]
-                        }
-                    },
-                    {
-                    # SCT service principal (for key creation)
-                    "tenant_id": self._azure_service.azure_credentials["tenant_id"],
-                    "object_id": "6c580092-c65c-4527-93d5-25177e10f54e",  # SCT's service principal
-                    "permissions": {
-                        "keys": ["create", "get", "list"],  # permissions for key creation
-                        "secrets": ["get"],
-                        "certificates": ["get"]
-                    }
-                }],
-                }
-                }
-            ).result()
-            LOGGER.info(f"Created vault with existing identity access: {vault_name}")
-        
-            # Create key
-            key_id = self._azure_service.create_vault_key(vault_uri=vault.properties.vault_uri,key_name="scylla-key")                    
-            vault_info = {'identity_id': existing_identity_id, 'vault_uri': vault.properties.vault_uri,'key_name': 'scylla-key', 'key_uri': key_id}
-            LOGGER.info(f"vault_uri item : {vault_info}")
-            return vault_info        
-        except Exception as e:
-            LOGGER.warning(f"Failed to Setup Keyvault: {e}")
-            return None
+    
             
 
             
@@ -131,9 +85,10 @@ class VirtualMachineProvider:
                 },
             }
             
-            vault_info = self._get_or_create_keyvault_and_identity()
+            self._kms_provider = KmsProvider(self._resource_group_name, self._region, self._az, self._azure_service)
+            vault_info = self._kms_provider.get_or_create_keyvault_and_identity()
             params["identity"] = {"type": "UserAssigned","user_assigned_identities": {vault_info['identity_id']: {}}}
-            LOGGER.info(f"Added Key Vault identity to VM: {definition.name}")
+            LOGGER.info(f"Added Key Vault {vault_info} identity to VM: {definition.name}")
 
             if definition.user_data is None:
                 # in case we use specialized image, we don't change things like computer_name, usernames, ssh_keys
