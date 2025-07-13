@@ -19,15 +19,19 @@ from functools import cached_property
 from itertools import chain
 
 from azure.identity import ClientSecretCredential
+from azure.keyvault.keys import KeyClient
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.compute.models import VirtualMachine
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.storage.blob import BlobServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
+from azure.mgmt.keyvault import KeyVaultManagementClient
+from azure.mgmt.msi import ManagedServiceIdentityClient
 from azure.mgmt.subscription import SubscriptionClient
 from azure.mgmt.resourcegraph import ResourceGraphClient
 from azure.mgmt.resourcegraph.models import QueryRequestOptions, QueryRequest
+
 
 from sdcm.keystore import KeyStore
 from sdcm.utils.decorators import retrying
@@ -125,7 +129,21 @@ class AzureService(metaclass=Singleton):
     @cached_property
     def get_by_id(self) -> Callable:
         return self.resource.resources.get_by_id
+        
+    @cached_property
+    def msi(self) -> ManagedServiceIdentityClient:
+        return ManagedServiceIdentityClient(credential=self.credential, subscription_id=self.subscription_id)        
 
+    @cached_property
+    def keyvault(self) -> KeyVaultManagementClient:
+        return KeyVaultManagementClient(credential=self.credential, subscription_id=self.subscription_id)
+        
+        
+    def create_vault_key(self, vault_uri: str, key_name: str, key_size: int = 2048) -> str:
+        key_client = KeyClient(vault_url=vault_uri, credential=self.credential)
+        key = key_client.create_rsa_key(name=key_name, size=key_size)
+        return key.id
+        
     def _get_ip_configuration_dict(self, network_interface_id: str) -> dict:
         return self.get_by_id(
             resource_id=network_interface_id,
@@ -240,3 +258,4 @@ def azure_check_instance_type_available(instance_type: str, location: str) -> bo
     """
     azure_service = AzureService()
     return any(instance_type in size.name for size in azure_service.compute.virtual_machine_sizes.list(location=location))
+

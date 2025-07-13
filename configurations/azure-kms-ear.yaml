@@ -1,0 +1,16 @@
+append_scylla_yaml:
+  azure_hosts:
+     scylla-dynamic-vault:  
+       master_key: "KEYVAULT_URI_PLACEHOLDER"
+
+  user_info_encryption:
+     enabled: true
+     key_provider: AzureKeyProviderFactory
+     azure_host: scylla-dynamic-vault
+   
+  system_info_encryption:
+    enabled: true
+    cipher_algorithm: AES/CBC/PKCS5Padding
+    secret_key_strength: 128
+    key_provider: AzureKeyProviderFactory
+    azure_host: scylla-dynamic-vault

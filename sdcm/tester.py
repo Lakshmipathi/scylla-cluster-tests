@@ -66,6 +66,7 @@ from sdcm.kafka.kafka_cluster import LocalKafkaCluster
 from sdcm.kafka.kafka_producer import KafkaProducerThread, KafkaValidatorThread
 from sdcm.provision.aws.dedicated_host import SCTDedicatedHosts
 from sdcm.provision.azure.provisioner import AzureProvisioner
+from sdcm.provision.azure.kms_provider import KmsProvider
 from sdcm.provision.network_configuration import ssh_connection_ip_type
 from sdcm.provision.provisioner import provisioner_factory
 from sdcm.provision.helpers.certificate import create_ca, update_certificate, cleanup_ssl_config
@@ -808,6 +809,51 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
             'kmip_hosts' in append_scylla_yaml
         )
 
+    def _prepare_azure_encryption(self) -> None:
+        region = self.params.get('azure_region_name')[0]
+        az = self.params.get('availability_zone')
+        resource_group_name = f"SCT-{self.test_config.test_id()}-{region}"
+
+        kms_provider = KmsProvider(resource_group_name, region, az)
+        vault_info = kms_provider.get_or_create_keyvault_and_identity()
+
+        if not vault_info:
+            self.log.warning("Azure Key Vault setup skipped as vault_info is empty.")
+            return
+
+        append_scylla_yaml = self.params.get("append_scylla_yaml") or {}
+        if "azure_hosts" not in append_scylla_yaml:
+            append_scylla_yaml["azure_hosts"] = {}
+        append_scylla_yaml["azure_hosts"]["scylla-dynamic-vault"] = {
+            'master_key': vault_info['key_uri'],
+            'key_cache_expiry': '900s',
+            'key_cache_refresh': '1260s',
+        }
+        append_scylla_yaml['user_info_encryption'] = {
+            'enabled': True,
+            'key_provider': 'AzureKeyProviderFactory',
+            'azure_host': 'scylla-dynamic-vault',
+        }
+        append_scylla_yaml['system_info_encryption'] = {
+            'enabled': True,
+            'cipher_algorithm': 'AES/CBC/PKCS5Padding',
+            'secret_key_strength': 128,
+            'key_provider': 'AzureKeyProviderFactory',
+            'azure_host': 'scylla-dynamic-vault',
+        }
+        self.params["append_scylla_yaml"] = append_scylla_yaml
+        self.log.info("Azure Key Vault configured successfully.")
+        
+    def prepare_azure_kms(self) -> None:
+        cluster_backend = self.params.get('cluster_backend')
+        if cluster_backend == 'azure':
+            if self.params.get('enable_azure_kms'):
+                #self._prepare_azure_encryption()
+                pass
+            else:
+                self.log.info("Azure KMS not enabled by configuration.")
+            return
+
     def prepare_kms_host(self) -> None:
         version_supports_kms = (self.params.is_enterprise and
                                 ComparableScyllaVersion(self.params.scylla_version) >= '2023.1.3')
@@ -876,6 +922,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         self.start_time = time.time()
         self.teardown_started = False
         self._init_params()
+        self.log.info(f"Value of enable_azure_kms in params: {self.params.get('enable_azure_kms')}")
         reuse_cluster_id = self.params.get('reuse_cluster')
         if reuse_cluster_id:
             self.test_config.reuse_cluster(True)
@@ -988,11 +1035,12 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
             self.download_db_packages()
         if self.is_encrypt_keys_needed:
             self.download_encrypt_keys()
-        self.prepare_kms_host()
+        self.prepare_kms_host()        
 
         self.nemesis_allocator = NemesisNodeAllocator(self)
 
         self.init_resources()
+        self.prepare_azure_kms()
 
         if self.k8s_clusters and self.params.get("k8s_use_chaos_mesh"):
             for k8s_cluster in self.k8s_clusters:
@@ -1363,8 +1411,11 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         test_id = str(TestConfig().test_id())
         provisioners: List[AzureProvisioner] = []
         for region in regions:
+            enable_azure_kms = self.params.get('enable_azure_kms')
+            self.log.info(f"DEBUG: self.params.get('enable_azure_kms') = {enable_azure_kms} (type: {type(enable_azure_kms)})")
+            self.log.info(f"DEBUG: All params with 'kms' in name: {[k for k in self.params.keys() if 'kms' in k.lower()]}")
             provisioners.append(provisioner_factory.create_provisioner(backend="azure", test_id=test_id,
-                                region=region, availability_zone=self.params.get('availability_zone')))
+                                region=region, availability_zone=self.params.get('availability_zone'), enable_azure_kms=enable_azure_kms))
         if db_info['n_nodes'] is None:
             n_db_nodes = self.params.get('n_db_nodes')
             if isinstance(n_db_nodes, int):  # legacy type
@@ -1969,6 +2020,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         cluster_backend = self.params.get('cluster_backend')
         if cluster_backend is None:
             cluster_backend = 'aws'
+        self.log.info(f"DEBUG: cluster_backend = {cluster_backend}")
 
         self.get_cluster_kafka()
 

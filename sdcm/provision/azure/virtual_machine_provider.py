@@ -24,6 +24,7 @@ from azure.core.exceptions import ResourceNotFoundError, AzureError, ODataV4Erro
 from azure.mgmt.compute.models import VirtualMachine, RunCommandInput
 from invoke import Result
 
+from sdcm.provision.azure.kms_provider import KmsProvider
 from sdcm.provision.provisioner import InstanceDefinition, PricingModel, ProvisionError, OperationPreemptedError
 from sdcm.provision.user_data import UserDataBuilder
 from sdcm.utils.azure_utils import AzureService
@@ -38,9 +39,22 @@ class VirtualMachineProvider:
     _az: str
     _azure_service: AzureService = AzureService()
     _cache: Dict[str, VirtualMachine] = field(default_factory=dict)
+    enable_azure_kms: bool = False
+    
+    def __init__(self, resource_group_name: str, region: str, az: str, azure_service: AzureService = AzureService(), enable_azure_kms: bool = False):
+        LOGGER.info(f"VirtualMachineProvider.__init__ called with enable_azure_kms = {enable_azure_kms} [instance: {id(self)}]")
+        self._resource_group_name = resource_group_name
+        self._region = region
+        self._az = az
+        self._azure_service = azure_service
+        self._cache = {}
+        self.enable_azure_kms = enable_azure_kms
+        LOGGER.info(f"VirtualMachineProvider.__init__ set self.enable_azure_kms = {self.enable_azure_kms} [instance: {id(self)}]")
+        self.__post_init__()
 
     def __post_init__(self):
         """Discover existing virtual machines for resource group."""
+        LOGGER.info(f"VirtualMachineProvider.__post_init__: enable_azure_kms = {self.enable_azure_kms}")
         try:
             v_ms = self._azure_service.compute.virtual_machines.list(self._resource_group_name)
             for _v_m in v_ms:
@@ -53,6 +67,7 @@ class VirtualMachineProvider:
     def get_or_create(self, definitions: List[InstanceDefinition], nics_ids: List[str], pricing_model: PricingModel
                       ) -> List[VirtualMachine]:
 
+        LOGGER.info(f"VirtualMachineProvider.get_or_create called with enable_azure_kms = {self.enable_azure_kms}")
         v_ms = []
         pollers = []
         error_to_raise = None
@@ -80,6 +95,18 @@ class VirtualMachineProvider:
                     }],
                 },
             }
+            
+            LOGGER.info(f"DEBUG: About to check enable_azure_kms for {definition.name}, value = {self.enable_azure_kms}")
+            if self.enable_azure_kms:
+                LOGGER.info(f"Key Vault res name: {self._resource_group_name}")
+                self._kms_provider = KmsProvider(self._resource_group_name, self._region, self._az, self._azure_service)
+                vault_info = self._kms_provider.get_or_create_keyvault_and_identity()
+                params["identity"] = {"type": "UserAssigned","user_assigned_identities": {vault_info['identity_id']: {}}}
+                LOGGER.info(f"Added Key Vault identity to VM: {definition.name}")
+            else:
+                LOGGER.info(f"Azure Key Vault disabled for {definition.name}")
+            
+
             if definition.user_data is None:
                 # in case we use specialized image, we don't change things like computer_name, usernames, ssh_keys
                 os_profile = {}
