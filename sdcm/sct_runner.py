@@ -1078,7 +1078,7 @@ class AzureSctRunner(SctRunner):
             test_id = tags["TestId"]
             provisioner = provisioner_factory.create_provisioner(backend="azure", test_id=test_id,
                                                                  region=self.azure_region.location,
-                                                                 availability_zone=self.availability_zone)
+                                                                 n_db_nodes=1, availability_zone=self.availability_zone)
             vm_params = InstanceDefinition(name=instance_name,
                                            image_id=base_image["id"],
                                            type=instance_type,

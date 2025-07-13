@@ -40,7 +40,7 @@ def test_can_provision_instances_according_to_sct_configuration(params, test_con
     assert db_node.pricing_model == PricingModel.SPOT
 
     provisioner_easteu = provisioner_factory.create_provisioner(backend="azure", test_id=params.get("test_id"),
-                                                                region="easteu", availability_zone="1", azure_service=azure_service)
+                                                                region="easteu", n_db_nodes=3, availability_zone="1", azure_service=azure_service)
     easteu_instances = provisioner_easteu.list_instances()
     db_nodes = [node for node in easteu_instances if node.tags['NodeType'] == "scylla-db"]
     loader_nodes = [node for node in easteu_instances if node.tags['NodeType'] == "loader"]

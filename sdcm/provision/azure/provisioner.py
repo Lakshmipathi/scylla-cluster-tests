@@ -38,10 +38,11 @@ LOGGER = logging.getLogger(__name__)
 class AzureProvisioner(Provisioner):
     """Provides api for VM provisioning in Azure cloud, tuned for Scylla QA. """
 
-    def __init__(self, test_id: str, region: str, availability_zone: str,
+    def __init__(self, test_id: str, region: str, n_db_nodes: int, availability_zone: str,
                  azure_service: AzureService = AzureService(), **_):
         availability_zone = self._convert_az_to_zone(availability_zone)
         super().__init__(test_id, region, availability_zone)
+        self._n_db_nodes = n_db_nodes
         self._azure_service: AzureService = azure_service
         self._cache: Dict[str, VmInstance] = {}
         LOGGER.debug("getting resources for %s...", self._resource_group_name)
@@ -55,7 +56,7 @@ class AzureProvisioner(Provisioner):
         self._ip_provider = IpAddressProvider(self._resource_group_name, self._region, self._az, self._azure_service)
         self._nic_provider = NetworkInterfaceProvider(self._resource_group_name, self._region, self._azure_service)
         self._vm_provider = VirtualMachineProvider(
-            self._resource_group_name, self._region, self._az, self._azure_service)
+            self._resource_group_name, self._region, self._n_db_nodes, self._az, self._azure_service)
         for v_m in self._vm_provider.list():
             try:
                 self._cache[v_m.name] = self._vm_to_instance(v_m)
@@ -88,7 +89,7 @@ class AzureProvisioner(Provisioner):
 
     @classmethod
     def discover_regions(cls, test_id: str = "", regions: list = None,
-                         azure_service: AzureService = AzureService(), **kwargs) -> List["AzureProvisioner"]:
+                         azure_service: AzureService = AzureService(), n_db_nodes: int = 3, **kwargs) -> List["AzureProvisioner"]:
         """Discovers provisioners for in each region for given test id.
 
         If test_id is not provided, it discovers all related to SCT provisioners."""
@@ -99,11 +100,11 @@ class AzureProvisioner(Provisioner):
             if rg.name.startswith("SCT-") and (rg.location in regions if regions else True)
         ]
         if test_id:
-            provisioner_params = [(test_id, rg.location, cls._get_az_from_name(rg), azure_service)
+            provisioner_params = [(test_id, rg.location, n_db_nodes, cls._get_az_from_name(rg), azure_service)
                                   for rg in all_resource_groups if test_id in rg.name]
         else:
             # extract test_id from rg names where rg.name format is: SCT-<test_id>-<region>-<az>
-            provisioner_params = [(test_id, rg.location, cls._get_az_from_name(rg), azure_service) for rg in all_resource_groups
+            provisioner_params = [(test_id, rg.location, n_db_nodes, cls._get_az_from_name(rg), azure_service) for rg in all_resource_groups
                                   if (test_id := rg.name.split("SCT-")[-1][:36]) and len(test_id) == 36]
         return [cls(*params) for params in provisioner_params]
 
@@ -146,7 +147,7 @@ class AzureProvisioner(Provisioner):
                 self._resource_group_name, self._region, self._az, self._azure_service)
             self._nic_provider = NetworkInterfaceProvider(self._resource_group_name, self._region, self._azure_service)
             self._vm_provider = VirtualMachineProvider(
-                self._resource_group_name, self._region, self._az, self._azure_service)
+                self._resource_group_name, self._region, self._n_db_nodes, self._az, self._azure_service)
             raise
         for definition, v_m in zip(definitions, v_ms):
             instance = self._vm_to_instance(v_m)
