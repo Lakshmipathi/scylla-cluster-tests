@@ -909,6 +909,7 @@ class SCTConfiguration(dict):
         dict(name="azure_image_username", env="SCT_AZURE_IMAGE_USERNAME", type=str,
              help=""),
 
+
         # k8s-eks options
         dict(name="eks_service_ipv4_cidr", env="SCT_EKS_SERVICE_IPV4_CIDR", type=str,
              help=""),
