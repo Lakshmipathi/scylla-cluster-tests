@@ -35,14 +35,13 @@ LOGGER = logging.getLogger(__name__)
 class VirtualMachineProvider:
     _resource_group_name: str
     _region: str
-    _n_db_nodes: int
+    _enable_azure_kms: bool
     _az: str
     _azure_service: AzureService = AzureService()
     _cache: Dict[str, VirtualMachine] = field(default_factory=dict)
 
     def __post_init__(self):
         """Discover existing virtual machines for resource group."""
-        LOGGER.info(f"VirtualMachineProvider initialized with n_db_nodes = {self._n_db_nodes}")
         try:
             v_ms = self._azure_service.compute.virtual_machines.list(self._resource_group_name)
             for _v_m in v_ms:
@@ -87,10 +86,13 @@ class VirtualMachineProvider:
                 },
             }
             
-            self._kms_provider = KmsProvider(self._resource_group_name, self._region, self._az, self._azure_service)
-            vault_info = self._kms_provider.get_or_create_keyvault_and_identity()
-            params["identity"] = {"type": "UserAssigned","user_assigned_identities": {vault_info['identity_id']: {}}}
-            LOGGER.info(f"Added Key Vault {vault_info} identity to VM: {definition.name}")
+            if self._enable_azure_kms:
+                self._kms_provider = KmsProvider(self._resource_group_name, self._region, self._az, self._azure_service)
+                vault_info = self._kms_provider.get_or_create_keyvault_and_identity()
+                params["identity"] = {"type": "UserAssigned","user_assigned_identities": {vault_info['identity_id']: {}}}
+                LOGGER.info(f"Azure Key Vault enabled for {definition.name}")
+            else:
+                LOGGER.info(f"Azure Key Vault disabled for {definition.name}")
 
             if definition.user_data is None:
                 # in case we use specialized image, we don't change things like computer_name, usernames, ssh_keys
