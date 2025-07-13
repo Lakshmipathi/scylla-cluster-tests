@@ -19,15 +19,18 @@ from functools import cached_property
 from itertools import chain
 
 from azure.identity import ClientSecretCredential
+from azure.keyvault.keys import KeyClient
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.compute.models import VirtualMachine
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.storage.blob import BlobServiceClient
 from azure.core.credentials import AzureNamedKeyCredential
+from azure.mgmt.keyvault import KeyVaultManagementClient
 from azure.mgmt.subscription import SubscriptionClient
 from azure.mgmt.resourcegraph import ResourceGraphClient
 from azure.mgmt.resourcegraph.models import QueryRequestOptions, QueryRequest
+
 
 from sdcm.keystore import KeyStore
 from sdcm.utils.decorators import retrying
@@ -125,6 +128,39 @@ class AzureService(metaclass=Singleton):
     @cached_property
     def get_by_id(self) -> Callable:
         return self.resource.resources.get_by_id
+
+    @cached_property
+    def keyvault(self) -> KeyVaultManagementClient:
+        return KeyVaultManagementClient(credential=self.credential, subscription_id=self.subscription_id)
+
+    def create_vault_key(self, vault_uri: str, key_name: str, key_size: int = 2048) -> str:
+        key_client = KeyClient(vault_url=vault_uri, credential=self.credential)
+        key = key_client.create_rsa_key(name=key_name, size=key_size)
+        return key.id
+
+    def get_vault_key(self, vault_uri: str, key_name: str) -> dict | None:
+        """Get key information including metadata and tags."""
+        try:
+            key_client = KeyClient(vault_url=vault_uri, credential=self.credential)
+            key = key_client.get_key(name=key_name)
+            return {
+                'id': key.id,
+                'name': key.name,
+                'tags': key.properties.tags or {}
+            }
+        except Exception as e:
+            LOGGER.debug(f"Failed to get key {key_name}: {e}")
+            return None
+
+    def update_key_tags(self, vault_uri: str, key_name: str, tags: dict) -> bool:
+        """Update tags for a key vault key"""
+        try:
+            key_client = KeyClient(vault_url=vault_uri, credential=self.credential)
+            key_client.update_key_properties(name=key_name, tags=tags)
+            return True
+        except Exception as e:
+            LOGGER.error(f"Failed to update tags for key {key_name}: {e}")
+            return False
 
     def _get_ip_configuration_dict(self, network_interface_id: str) -> dict:
         return self.get_by_id(

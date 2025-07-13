@@ -85,6 +85,7 @@ from sdcm.tombstone_gc_verification_thread import TombstoneGcVerificationThread
 from sdcm.utils.action_logger import get_action_logger
 from sdcm.utils.alternator.consts import NO_LWT_TABLE_NAME
 from sdcm.utils.aws_kms import AwsKms
+from sdcm.utils.azure_kms import AzureKms
 from sdcm.utils.aws_region import AwsRegion
 from sdcm.utils.aws_utils import init_monitoring_info_from_params, get_ec2_services, \
     get_common_params, init_db_info_from_params, ec2_ami_get_root_device_name
@@ -885,6 +886,50 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         self.params["append_scylla_yaml"] = append_scylla_yaml
         return None
 
+    def prepare_azure_kms(self) -> None:
+        cluster_backend = self.params.get('cluster_backend')
+        if cluster_backend == 'azure':
+            if self.params.get('enable_azure_kms'):
+                # Use shared vault with hash-based key assignment
+                region = self.params.region_names[0] if self.params.region_names else 'eastus'
+                azure_kms = AzureKms(region=region)
+
+                # Ensure shared infrastructure exists
+                if not azure_kms.ensure_shared_infrastructure():
+                    self.log.error("Failed to setup Azure KMS infrastructure")
+                    return
+
+                test_id = str(self.test_config.test_id())
+                key_uri = azure_kms.get_key_for_test(test_id)
+
+                self.log.info(f"Preparing Azure KMS configuration - Test: {test_id}, Key: {key_uri}")
+
+                # Add Azure KMS configuration to append_scylla_yaml
+                append_scylla_yaml = self.params.get("append_scylla_yaml") or {}
+                if "azure_hosts" not in append_scylla_yaml:
+                    append_scylla_yaml["azure_hosts"] = {}
+                append_scylla_yaml["azure_hosts"]["scylla-shared-vault"] = {
+                    'master_key': key_uri,
+                    'key_cache_expiry': '900s',
+                    'key_cache_refresh': '1260s',
+                }
+                append_scylla_yaml['user_info_encryption'] = {
+                    'enabled': True,
+                    'key_provider': 'AzureKeyProviderFactory',
+                    'azure_host': 'scylla-shared-vault',
+                }
+                append_scylla_yaml['system_info_encryption'] = {
+                    'enabled': True,
+                    'cipher_algorithm': 'AES/CBC/PKCS5Padding',
+                    'secret_key_strength': 128,
+                    'key_provider': 'AzureKeyProviderFactory',
+                    'azure_host': 'scylla-shared-vault',
+                }
+                self.params["append_scylla_yaml"] = append_scylla_yaml
+                self.log.info(f"Azure KMS configured - Test: {test_id}, Key: {key_uri}")
+            else:
+                self.log.info("Azure KMS not enabled by configuration.")
+
     def kafka_configure(self):
         if self.kafka_cluster:
             for connector_config in self.params.get('kafka_connectors'):
@@ -1014,6 +1059,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if self.is_encrypt_keys_needed:
             self.download_encrypt_keys()
         self.prepare_kms_host()
+        self.prepare_azure_kms()
 
         self.nemesis_allocator = NemesisNodeAllocator(self)
 
@@ -1108,6 +1154,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
             for db_cluster in self.db_clusters_multitenant:
                 if db_cluster:
                     db_cluster.start_kms_key_rotation_thread()
+                    db_cluster.start_azure_kms_key_rotation_thread()
 
             for future in as_completed(futures):
                 future.result()
