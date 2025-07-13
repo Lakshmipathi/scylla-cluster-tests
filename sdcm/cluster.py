@@ -87,6 +87,8 @@ from sdcm.snitch_configuration import SnitchConfig
 from sdcm.utils import properties
 from sdcm.utils.adaptive_timeouts import Operations, adaptive_timeout
 from sdcm.utils.aws_kms import AwsKms
+from sdcm.utils.azure_kms import AzureKms
+from azure.core.exceptions import AzureError
 from sdcm.utils.cql_utils import cql_quote_if_needed
 from sdcm.utils.benchmarks import ScyllaClusterBenchmarkManager
 from sdcm.utils.common import (
@@ -4788,6 +4790,31 @@ class BaseScyllaCluster:
             },
             daemon=True)
         kms_key_rotation_thread.start()
+        return None
+
+    def start_azure_kms_key_rotation_thread(self) -> None:
+        if self.params.get("cluster_backend") != 'azure':
+            return None
+
+        if not self.params.get("enable_kms_key_rotation"):
+            self.log.debug("Azure KMS key rotation is disabled")
+            return None
+
+        test_id = str(self.test_config.test_id())
+        azure_region_names = self.params.get('azure_region_name')
+        region = azure_region_names[0]
+
+        def _rotate():
+            azure_kms = AzureKms(region=region)
+            time.sleep(60 * 60)  # Wait 60 minutes before rotation
+            try:
+                azure_kms.rotate_kms_key(test_id)
+                self.log.info(f"Azure KMS key rotated for test: {test_id}")
+            except AzureError as e:
+                self.log.error(f"Failed to rotate Azure KMS key: {e}")
+
+        threading.Thread(target=_rotate, daemon=True, name='AzureKmsRotationThread').start()
+        self.log.info("Started Azure KMS rotation thread for test: %s", test_id)
         return None
 
     def scylla_configure_non_root_installation(self, node, devname):

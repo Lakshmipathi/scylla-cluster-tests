@@ -13,6 +13,7 @@ azure_instance_type_monitor: 'Standard_D2_v4'
 azure_image_loader: 'Canonical:ubuntu-24_04-lts:server:latest'
 azure_image_monitor: 'Canonical:ubuntu-24_04-lts:server:latest'
 
+
 availability_zone: ''
 root_disk_size_monitor: 50  # GB, remove this field if default disk size should be used
 root_disk_size_db: 30  # GB, increase root disk for larger swap (maximum: 16G)
