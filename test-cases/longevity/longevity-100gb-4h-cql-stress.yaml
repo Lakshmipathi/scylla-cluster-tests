@@ -33,7 +33,7 @@ append_scylla_yaml:
       my_test_gcp:
          gcp_project_id: 'sct-project-1'
          gcp_location: 'us-east1'
-         master_key: 'demo-keyring/master-key'
+         master_key: 'demo-keyring/qa-key'
          key_cache_expiry: 300
          key_cache_refresh: 600
   system_info_encryption:
