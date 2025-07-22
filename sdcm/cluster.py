@@ -87,6 +87,7 @@ from sdcm.snitch_configuration import SnitchConfig
 from sdcm.utils import properties
 from sdcm.utils.adaptive_timeouts import Operations, adaptive_timeout
 from sdcm.utils.aws_kms import AwsKms
+from sdcm.utils.gcp_kms import GcpKms
 from sdcm.utils.cql_utils import cql_quote_if_needed
 from sdcm.utils.benchmarks import ScyllaClusterBenchmarkManager
 from sdcm.utils.common import (
@@ -4787,6 +4788,37 @@ class BaseScyllaCluster:
             daemon=True)
         kms_key_rotation_thread.start()
         return None
+
+    def start_gcp_key_rotation_thread(self):
+        if self.params.get("cluster_backend") != 'gce':
+            return
+        append_scylla_yaml = self.params.get("append_scylla_yaml") or {}
+        gcp_host_name = append_scylla_yaml.get("user_info_encryption", {}).get("gcp_host")
+        if not gcp_host_name:
+            return
+        gcp_host_config = append_scylla_yaml["gcp_hosts"][gcp_host_name]
+        project_id = gcp_host_config['gcp_project_id']
+        location = gcp_host_config['gcp_location']
+        test_id = self.test_config.test_id()
+        key_name = f"sct-key-{test_id}"
+        
+        self.gcp_kms = GcpKms(project_id, location, key_name)
+        self.gcp_kms.get_or_create_key()
+        
+        def _rotate():
+            time.sleep(10 * 60)  # Wait 10 minutes for single rotation
+            try:
+                self.gcp_kms.rotate_key()
+                self.log.info("GCP KMS key rotated: %s", key_name)
+            except Exception:  # noqa: BLE001
+                self.log.error("Failed to rotate GCP KMS key for '%s'", key_name)
+
+        threading.Thread(target=_rotate, daemon=True, name='GcpKmsRotationThread').start()
+        self.log.info("Started GCP KMS rotation thread for %s", key_name)
+
+    def cleanup_gcp_kms_keys(self):
+        if self.gcp_kms:
+            self.gcp_kms.cleanup_key_versions()
 
     def scylla_configure_non_root_installation(self, node, devname):
         node.stop_scylla_server(verify_down=False)
