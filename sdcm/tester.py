@@ -85,6 +85,7 @@ from sdcm.tombstone_gc_verification_thread import TombstoneGcVerificationThread
 from sdcm.utils.action_logger import get_action_logger
 from sdcm.utils.alternator.consts import NO_LWT_TABLE_NAME
 from sdcm.utils.aws_kms import AwsKms
+from sdcm.utils.gcp_kms import GcpKms
 from sdcm.utils.aws_region import AwsRegion
 from sdcm.utils.aws_utils import init_monitoring_info_from_params, get_ec2_services, \
     get_common_params, init_db_info_from_params, ec2_ami_get_root_device_name
@@ -616,6 +617,9 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
     def collect_ssl_conf(self):
         shutil.copytree(Path(get_data_dir_path('ssl_conf')), Path(self.logdir) / 'ssl_conf')
 
+    def cleanup_gcp_kms_keys(self):
+        self.db_cluster.cleanup_gcp_kms_keys()
+
     def _init_data_validation(self):
         if data_validation := self.params.get('data_validation'):
             data_validation_params = yaml.safe_load(data_validation)
@@ -884,6 +888,30 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         self.params["append_scylla_yaml"] = append_scylla_yaml
         return None
 
+    def prepare_gcp_kms(self) -> None:
+        cluster_backend = self.params.get('cluster_backend')
+        if cluster_backend != 'gce':
+            return
+        append_scylla_yaml = self.params.get("append_scylla_yaml")
+        if not append_scylla_yaml or "user_info_encryption" not in append_scylla_yaml:
+            return
+        gcp_host_name = append_scylla_yaml["user_info_encryption"]["gcp_host"]
+        gcp_host_config = append_scylla_yaml["gcp_hosts"][gcp_host_name]
+        project_id = gcp_host_config['gcp_project_id']
+        location = gcp_host_config['gcp_location']
+        test_id = str(self.test_config.test_id())
+        key_name = f"sct-key-{test_id}"
+        dynamic_master_key = f"demo-keyring/{key_name}"
+        self.gcp_kms = GcpKms(project_id, location, key_name)
+        try:
+            self.gcp_kms.get_or_create_key()
+            self.log.info(f"GCP KMS key ready: {key_name}")
+        except Exception as e:
+            self.log.error(f"Failed to prepare GCP KMS key: {e}")
+            return
+        append_scylla_yaml["gcp_hosts"][gcp_host_name]["master_key"] = dynamic_master_key
+        self.params["append_scylla_yaml"] = append_scylla_yaml
+
     def kafka_configure(self):
         if self.kafka_cluster:
             for connector_config in self.params.get('kafka_connectors'):
@@ -1014,6 +1042,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if self.is_encrypt_keys_needed:
             self.download_encrypt_keys()
         self.prepare_kms_host()
+        self.prepare_gcp_kms()
 
         self.nemesis_allocator = NemesisNodeAllocator(self)
 
@@ -1108,6 +1137,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
             for db_cluster in self.db_clusters_multitenant:
                 if db_cluster:
                     db_cluster.start_kms_key_rotation_thread()
+                    db_cluster.start_gcp_key_rotation_thread()
 
             for future in as_completed(futures):
                 future.result()
@@ -3135,6 +3165,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if self.params.get('collect_logs'):
             self.collect_logs()
         self.collect_ssl_conf()
+        self.cleanup_gcp_kms_keys()
         self.clean_resources()
         if self.create_stats:
             self.update_test_with_errors()
