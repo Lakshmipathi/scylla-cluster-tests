@@ -85,7 +85,7 @@ class AzureKmsProvider:
                             "tenant_id": self._azure_service.azure_credentials["tenant_id"],
                             "object_id": self.sct_service_principal_id,
                             "permissions": {
-                                "keys": ["create", "get", "list"],
+                                "keys": ["create", "get", "list", "update", "import", "delete", "rotate"],
                                 "secrets": ["get"],
                                 "certificates": ["get"]
                             }
