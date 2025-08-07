@@ -1131,6 +1131,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
             for db_cluster in self.db_clusters_multitenant:
                 if db_cluster:
                     db_cluster.start_kms_key_rotation_thread()
+                    db_cluster.start_azure_kms_key_rotation_thread()
 
             for future in as_completed(futures):
                 future.result()

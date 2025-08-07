@@ -146,6 +146,16 @@ class AzureService(metaclass=Singleton):
         except ResourceNotFoundError:
             return None
 
+    def rotate_vault_key(self, key_uri: str) -> str:
+        # Extract vault URI and key name from full key URI
+        # Format: https://vault-name.vault.azure.net/scylla-key-N
+        vault_uri = key_uri.split('scylla-key-')[0]
+        key_name = key_uri.split('/')[-1]
+        
+        key_client = KeyClient(vault_url=vault_uri, credential=self.credential)
+        rotated_key = key_client.rotate_key(name=key_name)
+        return rotated_key.id
+
     def _get_ip_configuration_dict(self, network_interface_id: str) -> dict:
         return self.get_by_id(
             resource_id=network_interface_id,
