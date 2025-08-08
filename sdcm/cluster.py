@@ -4798,7 +4798,7 @@ class BaseScyllaCluster:
         def _rotate():
             azure_service = AzureService()
             
-            time.sleep(60 * 60)
+            time.sleep(self.params.get("kms_key_rotation_interval") * 60)
             try:
                 key_uri = AzureKmsProvider.get_key_uri_for_test(region, test_id)
                 rotated_key_id = azure_service.rotate_vault_key(key_uri)

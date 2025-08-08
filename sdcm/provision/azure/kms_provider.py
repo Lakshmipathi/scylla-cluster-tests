@@ -43,25 +43,30 @@ class AzureKmsProvider:
     def sct_service_principal_id(self):
         return self._kms_config['sct_service_principal_id']
 
+    @classmethod
+    def _get_vault_name(cls, region: str) -> str:
+        """Generate vault name for the given region"""
+        kms_config = KeyStore().get_azure_kms_config()
+        return f"{kms_config['shared_vault_name']}-{region}"
+
     def _get_managed_identity_id(self) -> str:
         return (
             f"/subscriptions/{self._azure_service.subscription_id}"
             f"/resourcegroups/{self.managed_identity_config['resource_group']}"
-            f"/providers/Microsoft.ManagedIdentity"
+            "/providers/Microsoft.ManagedIdentity"
             f"/userAssignedIdentities/{self.managed_identity_config['identity_name']}"
         )
 
     @classmethod
     def get_key_uri_for_test(cls, region: str, test_id: str) -> str:
-        kms_config = KeyStore().get_azure_kms_config()
-        vault_name = f"{kms_config['shared_vault_name']}-{region}"
+        vault_name = cls._get_vault_name(region)
         vault_uri = f"https://{vault_name}.vault.azure.net/"
         key_number = (hash(test_id) % 3) + 1
         return f"{vault_uri}scylla-key-{key_number}"
 
     def get_or_create_keyvault_and_identity(self, test_id: str):
         """Use fixed vault with 3 pre-created keys"""
-        vault_name = f"{self._kms_config['shared_vault_name']}-{self._region}"
+        vault_name = self._get_vault_name(self._region)
         try:
             vault = self._azure_service.keyvault.vaults.begin_create_or_update(
                 resource_group_name=self._kms_config['resource_group'], vault_name=vault_name,

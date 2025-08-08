@@ -31,6 +31,8 @@ from sdcm.utils.azure_utils import AzureService
 
 LOGGER = logging.getLogger(__name__)
 
+SCT_RESOURCE_GROUP_PREFIX = "SCT-"
+
 
 @dataclass
 class VirtualMachineProvider:
@@ -87,7 +89,7 @@ class VirtualMachineProvider:
                 self._kms_provider = AzureKmsProvider(
                     self._resource_group_name, self._region, self._az, self._azure_service)
                 # Extract test_id from resource group name
-                test_id = self._resource_group_name.split("SCT-")[-1][:36]
+                test_id = self._resource_group_name.split(SCT_RESOURCE_GROUP_PREFIX)[-1][:36]
                 vault_info = self._kms_provider.get_or_create_keyvault_and_identity(test_id)
                 params["identity"] = {"type": "UserAssigned",
                                       "user_assigned_identities": {vault_info['identity_id']: {}}}

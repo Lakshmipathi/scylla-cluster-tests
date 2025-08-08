@@ -864,8 +864,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         return None
 
     def prepare_azure_kms(self) -> None:
-        version_supports_kms = (self.params.is_enterprise and
-                                ComparableScyllaVersion(self.params.scylla_version) >= '2023.1.3')
+        version_supports_kms = ComparableScyllaVersion(self.params.scylla_version) >= '2025.4.0'
         backend_support_kms = self.params.get('cluster_backend') in ('azure',)
         kms_configured_in_sct = self.params.get('scylla_encryption_options')
         test_uses_oracle = self.params.get("db_type") == "mixed_scylla"
@@ -888,7 +887,10 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if "azure_hosts" not in append_scylla_yaml:
             append_scylla_yaml["azure_hosts"] = {}
 
-        region = self.params.get('azure_region_name')[0]
+        regions = self.params.get('azure_region_name')
+        if len(regions) > 1:
+            raise NotImplementedError("Azure KMS multi-dc support is not yet implemented")
+        region = regions[0]
         key_uri = AzureKmsProvider.get_key_uri_for_test(region, test_id)
 
         append_scylla_yaml["azure_hosts"][azure_host] = {
