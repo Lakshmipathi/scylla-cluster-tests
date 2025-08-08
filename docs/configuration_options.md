@@ -2850,6 +2850,15 @@ The time interval in minutes which gets waited before the KMS key rotation happe
 **type:** int
 
 
+## **enable_kms_key_rotation** / SCT_ENABLE_KMS_KEY_ROTATION
+
+Allows to disable KMS keys rotation. Applicable only to Azure backend. In case of AWS backend its KMS keys will always be rotated as of now.
+
+**default:** N/A
+
+**type:** boolean
+
+
 ## **enterprise_disable_kms** / SCT_ENTERPRISE_DISABLE_KMS
 
 An escape hatch to disable KMS for enterprise run, when needed, we enable kms by default since if we use scylla 2023.1.3 and up

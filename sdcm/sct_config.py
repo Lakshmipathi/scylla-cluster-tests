@@ -1440,7 +1440,8 @@ class SCTConfiguration(dict):
                   " Applied when the AWS KMS service is configured to be used."),
 
         dict(name="enable_kms_key_rotation", env="SCT_ENABLE_KMS_KEY_ROTATION", type=boolean,
-             help="Enable automatic KMS key rotation (supports Azure for now)"),
+             help="Allows to disable KMS keys rotation. Applicable only to Azure backend. "
+                  "In case of AWS backend its KMS keys will always be rotated as of now."),
 
         dict(name="enterprise_disable_kms", env="SCT_ENTERPRISE_DISABLE_KMS", type=boolean,
              help="An escape hatch to disable KMS for enterprise run, when needed, "

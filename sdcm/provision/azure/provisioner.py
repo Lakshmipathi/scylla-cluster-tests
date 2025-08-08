@@ -37,11 +37,11 @@ LOGGER = logging.getLogger(__name__)
 class AzureProvisioner(Provisioner):
     """Provides api for VM provisioning in Azure cloud, tuned for Scylla QA. """
 
-    def __init__(self, test_id: str, region: str, availability_zone: str, enable_azure_kms: bool = False,
-                 azure_service: AzureService = AzureService(), **_):
+    def __init__(self, test_id: str, region: str, availability_zone: str,
+                 azure_service: AzureService = AzureService(), **config):
         availability_zone = self._convert_az_to_zone(availability_zone)
         super().__init__(test_id, region, availability_zone)
-        self._enable_azure_kms = enable_azure_kms
+        self._enable_azure_kms = not config.get('enterprise_disable_kms', False)
         self._azure_service: AzureService = azure_service
         self._cache: Dict[str, VmInstance] = {}
         LOGGER.debug("getting resources for %s...", self._resource_group_name)
