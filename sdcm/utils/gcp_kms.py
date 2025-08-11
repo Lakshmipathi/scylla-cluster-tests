@@ -13,17 +13,24 @@
 
 import logging
 
+from google.api_core.exceptions import NotFound
 from google.cloud import kms
+from google.cloud.exceptions import GoogleCloudError
+from sdcm.keystore import KeyStore
 
 LOGGER = logging.getLogger(__name__)
 
 
 class GcpKms:
-    KEYRING_NAME = "demo-keyring"
 
     def __init__(self, project_id: str, location: str, key_name: str):
+        self._gcp_kms_config = KeyStore().get_gcp_kms_config()
         self.key_name = key_name
-        self.keyring_path = f"projects/{project_id}/locations/{location}/keyRings/{self.KEYRING_NAME}"
+        self.project_id = project_id
+        self.location = location
+        keyring_name = self._gcp_kms_config['keyring_name']
+        self.keyring_name = keyring_name
+        self.keyring_path = f"projects/{project_id}/locations/{location}/keyRings/{keyring_name}"
         self.key_path = f"{self.keyring_path}/cryptoKeys/{key_name}"
         self.client = kms.KeyManagementServiceClient()
 
@@ -33,24 +40,16 @@ class GcpKms:
             crypto_key_id=self.key_name,
             crypto_key={'purpose': kms.CryptoKey.CryptoKeyPurpose.ENCRYPT_DECRYPT}
         )
-        LOGGER.info("Created GCP KMS test key: %s/%s", self.KEYRING_NAME, self.key_name)
+        LOGGER.info("Created GCP KMS test key: %s/%s", self._gcp_kms_config['keyring_name'], self.key_name)
 
     def get_or_create_key(self):
+        # Skip keyring operations - assume keyring is pre-created
         try:
             self.client.get_crypto_key(name=self.key_path)
             LOGGER.info("Using existing GCP KMS key: %s", self.key_path)
-        except Exception:
+        except (NotFound, GoogleCloudError):
             self.create_test_key()
 
     def rotate_key(self):
         self.client.create_crypto_key_version(parent=self.key_path, crypto_key_version={})
         LOGGER.info("Rotated GCP KMS key '%s'", self.key_path)
-
-    def cleanup_key_versions(self):
-        try:
-            versions = self.client.list_crypto_key_versions(parent=self.key_path)
-            for version in versions:
-                self.client.destroy_crypto_key_version(name=version.name)
-                LOGGER.info("Scheduled GCP KMS key version for cleanup: '%s'", version.name)
-        except Exception as e:
-            LOGGER.warning("Failed to schedule key cleanup: %s", e)

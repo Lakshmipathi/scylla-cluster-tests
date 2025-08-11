@@ -50,6 +50,7 @@ from argus.common.enums import TestStatus
 from sdcm import nemesis, cluster_docker, cluster_k8s, cluster_baremetal, db_stats, wait
 from sdcm.cloud_api_client import ScyllaCloudAPIClient
 from sdcm.provision.azure.kms_provider import AzureKmsProvider
+from sdcm.provision.gce.kms_provider import GcpKmsProvider
 from sdcm.cluster import BaseCluster, NoMonitorSet, SCYLLA_DIR, TestConfig, UserRemoteCredentials, BaseLoaderSet, BaseMonitorSet, \
     BaseScyllaCluster, BaseNode, MINUTE_IN_SEC
 from sdcm.cluster_azure import ScyllaAzureCluster, LoaderSetAzure, MonitorSetAzure
@@ -619,8 +620,6 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
     def collect_ssl_conf(self):
         shutil.copytree(Path(get_data_dir_path('ssl_conf')), Path(self.logdir) / 'ssl_conf')
 
-    def cleanup_gcp_kms_keys(self):
-        self.db_cluster.cleanup_gcp_kms_keys()
 
     def _init_data_validation(self):
         if data_validation := self.params.get('data_validation'):
@@ -938,28 +937,56 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         self.params["append_scylla_yaml"] = append_scylla_yaml
         return None
     def prepare_gcp_kms(self) -> None:
-        cluster_backend = self.params.get('cluster_backend')
-        if cluster_backend != 'gce':
-            return
-        append_scylla_yaml = self.params.get("append_scylla_yaml")
-        if not append_scylla_yaml or "user_info_encryption" not in append_scylla_yaml:
-            return
-        gcp_host_name = append_scylla_yaml["user_info_encryption"]["gcp_host"]
-        gcp_host_config = append_scylla_yaml["gcp_hosts"][gcp_host_name]
-        project_id = gcp_host_config['gcp_project_id']
-        location = gcp_host_config['gcp_location']
+        version_supports_kms = ComparableScyllaVersion(self.params.scylla_version) >= '2023.1.3'
+        backend_support_kms = self.params.get('cluster_backend') in ('gce',)
+        kms_configured_in_sct = self.params.get('scylla_encryption_options')
+        test_uses_oracle = self.params.get("db_type") == "mixed_scylla"
+        should_enable_kms = (version_supports_kms and
+                             backend_support_kms and
+                             not kms_configured_in_sct and
+                             not test_uses_oracle and
+                             not self.params.get('enterprise_disable_kms'))
+
+        if should_enable_kms:
+            self.params['scylla_encryption_options'] = "{ 'cipher_algorithm' : 'AES/ECB/PKCS5Padding', 'secret_key_strength' : 128, 'key_provider': 'GcpKeyProviderFactory', 'gcp_host': 'scylla-gcp-kms'}"
+        if not (scylla_encryption_options := self.params.get("scylla_encryption_options") or ''):
+            return None
+        gcp_host = (yaml.safe_load(scylla_encryption_options) or {}).get("gcp_host") or ''
+        if not gcp_host:
+            return None
+
         test_id = str(self.test_config.test_id())
-        key_name = f"sct-key-{test_id}"
-        dynamic_master_key = f"demo-keyring/{key_name}"
-        self.gcp_kms = GcpKms(project_id, location, key_name)
-        try:
-            self.gcp_kms.get_or_create_key()
-            self.log.info(f"GCP KMS key ready: {key_name}")
-        except Exception as e:
-            self.log.error(f"Failed to prepare GCP KMS key: {e}")
+        append_scylla_yaml = self.params.get("append_scylla_yaml") or {}
+        if "gcp_hosts" not in append_scylla_yaml:
+            append_scylla_yaml["gcp_hosts"] = {}
+
+        gcp_kms_provider = GcpKmsProvider()
+        key_info = gcp_kms_provider.get_or_create_keys_pool(test_id)
+        if not key_info:
+            self.log.error("Failed to setup GCP KMS key pool")
             return
-        append_scylla_yaml["gcp_hosts"][gcp_host_name]["master_key"] = dynamic_master_key
+
+        append_scylla_yaml["gcp_hosts"][gcp_host] = {
+            'gcp_project_id': key_info['project_id'],
+            'gcp_location': key_info['location'],
+            'key_cache_refresh': 300,
+            'key_cache_expiry': 600,
+            'master_key': key_info['key_uri']
+        }
+
+        append_scylla_yaml['user_info_encryption'] = {
+            'enabled': True,
+            'key_provider': 'GcpKeyProviderFactory',
+            'gcp_host': gcp_host,
+        }
+        append_scylla_yaml['system_info_encryption'] = {
+            'enabled': True,
+            'key_provider': 'GcpKeyProviderFactory',
+            'gcp_host': gcp_host,
+        }
+
         self.params["append_scylla_yaml"] = append_scylla_yaml
+        return None
 
     def kafka_configure(self):
         if self.kafka_cluster:
@@ -3219,7 +3246,6 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if self.params.get('collect_logs'):
             self.collect_logs()
         self.collect_ssl_conf()
-        self.cleanup_gcp_kms_keys()
         self.clean_resources()
         if self.create_stats:
             self.update_test_with_errors()

@@ -374,7 +374,7 @@ COMMAND=${HYDRA_COMMAND[0]}
 if [[ "$COMMAND" == *'bash'* ]] || [[ "$COMMAND" == *'python'* ]]; then
     CMD=${HYDRA_COMMAND[@]}
 else
-    CMD="./sct.py ${SCT_ARGUMENTS[@]} ${HYDRA_COMMAND[@]}"
+    CMD="pip install google-cloud-kms; ./sct.py ${SCT_ARGUMENTS[@]} ${HYDRA_COMMAND[@]}"
 fi
 
 run_in_docker "${CMD}" "${DOCKER_HOST}"

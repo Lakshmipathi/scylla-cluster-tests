@@ -121,6 +121,9 @@ class KeyStore:
     def get_azure_kms_config(self):
         return self.get_json("azure_kms_config.json")
 
+    def get_gcp_kms_config(self):
+        return self.get_json("gcp_kms_config.json")
+
     def get_argusdb_credentials(self):
         return self.get_json("argusdb_config_v2.json")
 

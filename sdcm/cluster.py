@@ -91,6 +91,7 @@ from sdcm.utils.azure_utils import AzureService
 from sdcm.provision.azure.kms_provider import AzureKmsProvider
 from azure.core.exceptions import ResourceNotFoundError
 from sdcm.utils.gcp_kms import GcpKms
+from sdcm.provision.gce.kms_provider import GcpKmsProvider
 from sdcm.utils.cql_utils import cql_quote_if_needed
 from sdcm.utils.benchmarks import ScyllaClusterBenchmarkManager
 from sdcm.utils.common import (
@@ -4820,33 +4821,32 @@ class BaseScyllaCluster:
 
     def start_gcp_key_rotation_thread(self):
         if self.params.get("cluster_backend") != 'gce':
-            return
+            return None
+        if not self.params.get("enable_kms_key_rotation"):
+            return None
         append_scylla_yaml = self.params.get("append_scylla_yaml")
         if not append_scylla_yaml or "user_info_encryption" not in append_scylla_yaml:
-            return
+            return None
         gcp_host_name = append_scylla_yaml["user_info_encryption"]["gcp_host"]
         gcp_host_config = append_scylla_yaml["gcp_hosts"][gcp_host_name]
         project_id = gcp_host_config['gcp_project_id']
         location = gcp_host_config['gcp_location']
-        test_id = self.test_config.test_id()
-        key_name = f"sct-key-{test_id}"
+        test_id = str(self.test_config.test_id())
+        key_name = GcpKmsProvider.get_key_name_for_test(test_id)
         self.gcp_kms = GcpKms(project_id, location, key_name)
-        self.gcp_kms.get_or_create_key()
+
         def _rotate():
-            # Rotate only once after 1hr
-            time.sleep(60 * 60)
+            time.sleep(self.params.get("kms_key_rotation_interval") * 60)
             try:
                 self.gcp_kms.rotate_key()
-                self.log.info("GCP KMS key rotated: %s", key_name)
+                self.log.info("GCP KMS key rotated for test %s: %s", test_id, key_name)
             except Exception:  # noqa: BLE001
                 self.log.error("Failed to rotate GCP KMS key for '%s'", key_name)
 
         threading.Thread(target=_rotate, daemon=True, name='GcpKmsRotationThread').start()
-        self.log.info("Started GCP KMS rotation thread for %s", key_name)
+        self.log.info("Started GCP KMS rotation thread for test: %s", test_id)
+        return None
 
-    def cleanup_gcp_kms_keys(self):
-        if self.gcp_kms:
-            self.gcp_kms.cleanup_key_versions()
 
     def scylla_configure_non_root_installation(self, node, devname):
         node.stop_scylla_server(verify_down=False)

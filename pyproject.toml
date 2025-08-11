@@ -28,6 +28,7 @@ dependencies = [
     "gimme-aws-creds==2.8.2",
     "google-api-python-client==2.93.0",
     "google-cloud-compute==1.13.0",
+    "google-cloud-kms==2.28.1",
     "google-cloud-storage==2.10.0",
     "hdrhistogram==0.9.2",
     "invoke==2.2.0",
