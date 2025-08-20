@@ -367,7 +367,7 @@ if [ -z "${DOCKER_GROUP_ARGS[@]}" ]; then
     done
 fi
 
-PREPARE_CMD="test"
+PREPARE_CMD="pip install --quiet google-auth google-cloud-kms>=3.5.1 || true"
 
 COMMAND=${HYDRA_COMMAND[0]}
 
