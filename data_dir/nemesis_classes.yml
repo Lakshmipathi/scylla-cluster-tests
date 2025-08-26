@@ -73,6 +73,7 @@
 - SnapshotOperations
 - SoftRebootNodeMonkey
 - SslHotReloadingNemesis
+- StandardRepairMonkey
 - StartStopCleanupCompaction
 - StartStopMajorCompaction
 - StartStopScrubCompaction
