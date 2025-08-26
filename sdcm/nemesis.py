@@ -1927,6 +1927,8 @@ class Nemesis(NemesisFlags):
             Columns = [
                 ColumnMetadata(name="bytes", unit="bytet", type=ResultType.INTEGER, higher_is_better=False),
                 ColumnMetadata(name="duration", unit="HH:MM:SS", type=ResultType.DURATION, higher_is_better=False),
+                ColumnMetadata(name="sstable_bytes_skipped", unit="bytes", type=ResultType.INTEGER, higher_is_better=False),
+                ColumnMetadata(name="sstable_bytes_read", unit="bytes", type=ResultType.INTEGER, higher_is_better=False),
             ]
 
     @target_data_nodes
@@ -1936,21 +1938,31 @@ class Nemesis(NemesisFlags):
         This method is used to ensure that the node is in a consistent state
         and that all data is properly replicated across the cluster.
         """
-        # space_used_query = f'sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
-        # start = time.time()
-        # results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
-        #     query=space_used_query, start=start, end=start)
-        # self.log.info(f"Prometheus results space: {results[0]}")
+        space_used_query = f'sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
+        skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+        read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+        start = time.time()
         self.repair_nodetool_repair()
-        # elapsed = int(time.time() - start)
-        #
-        # argus_client = self.target_node.test_config.argus_client()
-        #
-        # data_table = self.TimerResult()
-        # data_table.add_result(column="duration", row=f"{self.cycle}", value=elapsed, status=Status.UNSET)
-        # data_table.add_result(column="bytes", row=f"{self.cycle}", value=results[0], status=Status.UNSET)
-        # submit_results_to_argus(argus_client, data_table)
-        # self.cycle += 1
+        elapsed = int(time.time() - start)
+        results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+            query=space_used_query, start=start, end=start)
+        skipped_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+            query=skipped_bytes_query, start=start, end=start)
+        read_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+            query=read_bytes_query, start=start, end=start)
+        self.log.info(f"Prometheus results space: {results[0]}")
+        self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
+        self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
+
+        argus_client = self.target_node.test_config.argus_client()
+
+        data_table = self.TimerResult()
+        data_table.add_result(column="duration", row=f"{self.cycle}", value=elapsed, status=Status.UNSET)
+        data_table.add_result(column="bytes", row=f"{self.cycle}", value=int(results[0]['values'][0][1]), status=Status.UNSET)
+        data_table.add_result(column="sstable_bytes_skipped", row=f"{self.cycle}", value=int(skipped_results[0]['values'][0][1]), status=Status.UNSET)
+        data_table.add_result(column="sstable_bytes_read", row=f"{self.cycle}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
+        submit_results_to_argus(argus_client, data_table)
+        self.cycle += 1
 
     # End of Nemesis running code
 
