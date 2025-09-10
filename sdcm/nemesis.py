@@ -1542,9 +1542,19 @@ class Nemesis(NemesisFlags):
         #     self._prepare_test_table(ks=f'drop_table_during_repair_ks_{i}', table='standard1')
         #     self.cluster.wait_for_schema_agreement()
 
-        self.log.debug("Start repair target_node")
-        self.repair_nodetool_repair()
+        disk_before = self.target_node.remoter.run("df -m /var/lib/scylla | tail -n 1 | awk '{print $3}'")
+        disk_before_mb = int(disk_before.stdout.strip())
         
+        self.log.debug("Start repair target_node")
+        start_time = time.time()
+        self.repair_nodetool_repair()
+        repair_duration = int(time.time() - start_time)
+        
+        disk_after = self.target_node.remoter.run("df -m /var/lib/scylla | tail -n 1 | awk '{print $3}'")
+        disk_after_mb = int(disk_after.stdout.strip())
+        
+        self.log.info(f"Repair completed - Before: {disk_before_mb}MB, After: {disk_after_mb}MB, Duration: {repair_duration}s")
+
         # with ThreadPoolExecutor(max_workers=1, thread_name_prefix='NodeToolRepairThread') as thread_pool:
         #     thread = thread_pool.submit(self.repair_nodetool_repair)
         #     try:
