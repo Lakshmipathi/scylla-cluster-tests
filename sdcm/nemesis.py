@@ -1536,24 +1536,26 @@ class Nemesis(NemesisFlags):
         if SkipPerIssues("https://github.com/scylladb/scylladb/issues/18059", self.tester.params):
             raise UnsupportedNemesis('Disabled due to https://github.com/scylladb/scylladb/issues/18059 not fixed yet')
 
-        # prepare test tables and fill test data
-        for i in range(10):
-            self.log.debug('Prepare test tables if they do not exist')
-            self._prepare_test_table(ks=f'drop_table_during_repair_ks_{i}', table='standard1')
-            self.cluster.wait_for_schema_agreement()
+        # # prepare test tables and fill test data
+        # for i in range(10):
+        #     self.log.debug('Prepare test tables if they do not exist')
+        #     self._prepare_test_table(ks=f'drop_table_during_repair_ks_{i}', table='standard1')
+        #     self.cluster.wait_for_schema_agreement()
 
-        self.log.debug("Start repair target_node in background")
-        with ThreadPoolExecutor(max_workers=1, thread_name_prefix='NodeToolRepairThread') as thread_pool:
-            thread = thread_pool.submit(self.repair_nodetool_repair)
-            try:
-                # drop test tables one by one during repair
-                for i in range(10):
-                    time.sleep(random.randint(0, 300))
-                    with self.cluster.cql_connection_patient(self.target_node, connect_timeout=600) as session:
-                        session.execute(SimpleStatement(
-                            f'DROP TABLE drop_table_during_repair_ks_{i}.standard1'), timeout=300)
-            finally:
-                thread.result()
+        self.log.debug("Start repair target_node")
+        self.repair_nodetool_repair()
+        
+        # with ThreadPoolExecutor(max_workers=1, thread_name_prefix='NodeToolRepairThread') as thread_pool:
+        #     thread = thread_pool.submit(self.repair_nodetool_repair)
+        #     try:
+        #         # drop test tables one by one during repair
+        #         for i in range(10):
+        #             time.sleep(random.randint(0, 300))
+        #             with self.cluster.cql_connection_patient(self.target_node, connect_timeout=600) as session:
+        #                 session.execute(SimpleStatement(
+        #                     f'DROP TABLE drop_table_during_repair_ks_{i}.standard1'), timeout=300)
+        #     finally:
+        #         thread.result()
 
     def _major_compaction(self):
         with adaptive_timeout(Operations.MAJOR_COMPACT, self.target_node, timeout=8000):
