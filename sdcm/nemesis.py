@@ -1938,6 +1938,7 @@ class Nemesis(NemesisFlags):
         This method is used to ensure that the node is in a consistent state
         and that all data is properly replicated across the cluster.
         """
+        time.sleep(60)  # 1 minute delay before repair starts
         space_used_query = f'sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
         skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
         read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
