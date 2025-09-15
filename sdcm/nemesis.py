@@ -1945,6 +1945,7 @@ class Nemesis(NemesisFlags):
         start = time.time()
         self.repair_nodetool_repair()
         elapsed = int(time.time() - start)
+        self.log.info(f"Repair duration: {elapsed} seconds")
         results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
             query=space_used_query, start=start, end=start)
         skipped_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
