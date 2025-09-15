@@ -15,7 +15,7 @@ instance_type_db: 'i4i.2xlarge'
 
 #nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
 #nemesis_selector: ["", "limited and not disruptive"]
-nemesis_class_name: 'RepairMonkey'
+nemesis_class_name: 'RepairMonkey:1 IsolateNodeWithIptableRuleNemesis:1'
 nemesis_interval: 15
 
 user_prefix: 'longevity-100gb-4h'
