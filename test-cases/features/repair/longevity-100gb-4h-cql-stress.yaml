@@ -13,9 +13,10 @@ simulated_racks: 3
 
 instance_type_db: 'i4i.2xlarge'
 
-nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
-nemesis_selector: ["", "disruptive"]
-nemesis_seed: '032'
+#nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
+#nemesis_selector: ["", "disruptive"]
+#nemesis_seed: '032'
+nemesis_class_name: 'RepairMonkey'
 nemesis_interval: 15
 
 user_prefix: 'longevity-100gb-4h'
@@ -25,7 +26,6 @@ server_encrypt: true
 client_encrypt: true
 
 pre_create_schema: True
-sstable_size: 100
 
 #workload_name: 'longevity-100gb-repair'
 #use_hdrhistogram: True
