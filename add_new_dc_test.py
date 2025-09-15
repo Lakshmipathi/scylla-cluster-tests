@@ -53,7 +53,7 @@ class TestAddNewDc(LongevityTest):
 
         self.log.info("Running repair on all nodes")
         for node in self.db_cluster.nodes:
-            node.run_nodetool(sub_cmd="repair -pr", publish_event=True)
+            node.run_nodetool(sub_cmd="cluster repair", publish_event=True)
 
         if not skip_optional_stage('main_load'):
             # wait for stress to complete
