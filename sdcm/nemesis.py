@@ -1939,7 +1939,7 @@ class Nemesis(NemesisFlags):
         and that all data is properly replicated across the cluster.
         """
         time.sleep(60)  # 1 minute delay before repair starts
-        space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla/data", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla/data", instance=~"{self.target_node.private_ip_address}"}})'
+        space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
         skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
         read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
         start = time.time()
@@ -1952,9 +1952,9 @@ class Nemesis(NemesisFlags):
             query=skipped_bytes_query, start=start, end=start)
         read_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
             query=read_bytes_query, start=start, end=start)
-        # self.log.info(f"Prometheus results space: {results[0]}")
-        # self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
-        # self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
+        self.log.info(f"Prometheus results space: {results[0]}")
+        self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
+        self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
 
         argus_client = self.target_node.test_config.argus_client()
 
@@ -1984,7 +1984,7 @@ class Nemesis(NemesisFlags):
             for node in nodes:
                 try:
                     with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 3):
-                        node.run_nodetool(sub_cmd="cluster repair", publish_event=publish_event)
+                        node.run_nodetool(sub_cmd="repair -pr", publish_event=publish_event)
                 except Exception as err:  # pylint: disable=broad-except  # noqa: BLE001
                     self.log.warning(f"Repair failed to complete on node: {node}, with error: {str(err)}")
         else:
@@ -4894,7 +4894,7 @@ class Nemesis(NemesisFlags):
                                               metadata={"nodetool_cmd": cmd}):
                     new_node.run_nodetool(sub_cmd=cmd, long_running=True, retry=0)
                 InfoEvent(message='Running full cluster repair on each data node').publish()
-                cmd = "cluster repair"
+                cmd = "repair -pr"
                 for cluster_node in self.cluster.data_nodes:
                     with self.action_log_scope("Run repair", target=cluster_node.name,
                                                metadata={"nodetool_cmd": cmd}):
@@ -5210,7 +5210,7 @@ class Nemesis(NemesisFlags):
                 try:
                     self.log.info("Starting Scylla on node %s", self.target_node.name)
                     self.target_node.start_scylla()
-                    self.target_node.run_nodetool(sub_cmd="cluster repair")
+                    self.target_node.run_nodetool(sub_cmd="repair -pr")
                     with adaptive_timeout(operation=Operations.CREATE_MV, node=self.target_node, timeout=14400) as timeout:
                         wait_for_view_to_be_built(self.target_node, ks_name, view_name, timeout=timeout * 2)
                     session.execute(SimpleStatement(f'SELECT * FROM {ks_name}.{view_name} limit 1', fetch_size=10))

@@ -29,7 +29,7 @@ class AlternatorTtlLongevityTest(LongevityTest):
         if run_repair:
             self.log.info('Run a repair on nodes..')
             for node in self.db_cluster.nodes:
-                node.run_nodetool(sub_cmd="cluster repair")
+                node.run_nodetool(sub_cmd="repair -pr")
 
         node: BaseNode = self.db_cluster.nodes[0]
         self.log.info('force offstrategy on %s before running running a major compaction on node %s', self.keyspace,

@@ -1176,7 +1176,7 @@ class ClusterTester(db_stats.TestStatsMixin, unittest.TestCase):
         if repair_after_alter:
             self.log.info('repair %s keyspace ...', keyspace)
             for node in self.db_cluster.nodes:
-                node.run_nodetool(sub_cmd=f"cluster repair {keyspace}", timeout=MINUTE_IN_SEC * 20)
+                node.run_nodetool(sub_cmd=f"repair -pr {keyspace}", timeout=MINUTE_IN_SEC * 20)
             self.log.info('repair %s keyspace done', keyspace)
 
     @optional_stage('prepare_write')
