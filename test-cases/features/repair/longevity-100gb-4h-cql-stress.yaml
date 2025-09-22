@@ -20,8 +20,9 @@ simulated_racks: 3
 instance_type_db: 'i4i.2xlarge'
 
 #nemesis_class_name: 'RepairMonkey:1 GrowShrinkClusterNemesis:1'
-nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
-nemesis_selector: ["", "disruptive"]
+#nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
+nemesis_class_name: 'SisyphusMonkey:1'
+nemesis_selector: ["disruptive"]
 #nemesis_selector: ["",""]
 nemesis_seed: '032'
 #nemesis_class_name: 'RepairMonkey'
