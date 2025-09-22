@@ -1984,7 +1984,7 @@ class Nemesis(NemesisFlags):
             for node in nodes:
                 try:
                     with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 3):
-                        node.run_nodetool(sub_cmd="repair -pr", publish_event=publish_event)
+                        node.run_nodetool(sub_cmd="cluster repair", publish_event=publish_event)
                 except Exception as err:  # pylint: disable=broad-except  # noqa: BLE001
                     self.log.warning(f"Repair failed to complete on node: {node}, with error: {str(err)}")
         else:
@@ -4894,7 +4894,7 @@ class Nemesis(NemesisFlags):
                                               metadata={"nodetool_cmd": cmd}):
                     new_node.run_nodetool(sub_cmd=cmd, long_running=True, retry=0)
                 InfoEvent(message='Running full cluster repair on each data node').publish()
-                cmd = "repair -pr"
+                cmd = "cluster repair"
                 for cluster_node in self.cluster.data_nodes:
                     with self.action_log_scope("Run repair", target=cluster_node.name,
                                                metadata={"nodetool_cmd": cmd}):
@@ -5210,7 +5210,7 @@ class Nemesis(NemesisFlags):
                 try:
                     self.log.info("Starting Scylla on node %s", self.target_node.name)
                     self.target_node.start_scylla()
-                    self.target_node.run_nodetool(sub_cmd="repair -pr")
+                    self.target_node.run_nodetool(sub_cmd="cluster repair")
                     with adaptive_timeout(operation=Operations.CREATE_MV, node=self.target_node, timeout=14400) as timeout:
                         wait_for_view_to_be_built(self.target_node, ks_name, view_name, timeout=timeout * 2)
                     session.execute(SimpleStatement(f'SELECT * FROM {ks_name}.{view_name} limit 1', fetch_size=10))
