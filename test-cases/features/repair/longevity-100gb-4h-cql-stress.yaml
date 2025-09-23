@@ -21,8 +21,10 @@ instance_type_db: 'i4i.2xlarge'
 
 #nemesis_class_name: 'RepairMonkey:1 GrowShrinkClusterNemesis:1'
 #nemesis_class_name: 'RepairMonkey:1 SisyphusMonkey:1'
-nemesis_class_name: 'SisyphusMonkey:1'
-nemesis_selector: ["disruptive"]
+nemesis_class_name: 'SisyphusMonkey'
+nemesis_selector: ['RepairMonkey', 'StandardRepairMonkey', 'NoCorruptRepairMonkey', 'CorruptThenRepairMonkey', 'MgmtCorruptThenRepair', 'AbortRepairMonkey', 'RestartThenRepairNodeMonkey', 'MgmtRepair', 'RepairStreamingErrMonkey']
+#nemesis_class_name: 'SisyphusMonkey:1'
+#nemesis_selector: ["disruptive"]
 #nemesis_selector: ["",""]
 nemesis_seed: '032'
 #nemesis_class_name: 'RepairMonkey'
@@ -41,4 +43,4 @@ pre_create_schema: True
 #use_hdrhistogram: True
 
 hinted_handoff: 'enabled'
-parallel_node_operations: true
+parallel_node_operations: false
