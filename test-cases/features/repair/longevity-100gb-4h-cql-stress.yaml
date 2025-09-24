@@ -1,4 +1,4 @@
-test_duration: 800
+test_duration: 480
 
 prepare_write_cmd:  "cql-stress-cassandra-stress write cl=QUORUM n=122914560 -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=80 -pop seq=1..122914560 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
 
@@ -7,7 +7,7 @@ prepare_write_cmd:  "cql-stress-cassandra-stress write cl=QUORUM n=122914560 -sc
 #             ]
              
 stress_cmd: [
-    "cql-stress-cassandra-stress write cl=QUORUM -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=10 -pop seq=122914561..184371840 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15",
+    "cql-stress-cassandra-stress write cl=QUORUM -schema 'keyspace=write_keyspace replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=10 -pop seq=122914561..184371840 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15",
     "cql-stress-cassandra-stress read cl=QUORUM duration=600m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=10 -pop seq=1..122914560 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
     
 ]             
@@ -23,7 +23,7 @@ instance_type_db: 'i4i.2xlarge'
 #nemesis_selector: ["", "disruptive"]
 #nemesis_seed: '032'
 nemesis_class_name: 'RepairMonkey'
-nemesis_interval: 15
+#nemesis_interval: 15
 
 user_prefix: 'longevity-100gb-4h'
 space_node_threshold: 64424
@@ -37,4 +37,4 @@ pre_create_schema: True
 #use_hdrhistogram: True
 
 hinted_handoff: 'enabled'
-parallel_node_operations: true
+#parallel_node_operations: true

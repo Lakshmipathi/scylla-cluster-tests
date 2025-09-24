@@ -1934,39 +1934,54 @@ class Nemesis(NemesisFlags):
     @target_data_nodes
     def disrupt_standard_repair(self):
         """
-        Run a standard repair process on the target node.
-        This method is used to ensure that the node is in a consistent state
-        and that all data is properly replicated across the cluster.
+        Run a standard repair process on the target node in 5 cycles.
+        Each cycle runs repair and then creates 100GB of data for the next cycle.
         """
-        time.sleep(60)  # 1 minute delay before repair starts
-        space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
-        skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
-        read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
-        start = time.time()
-        self.repair_nodetool_repair()
-        elapsed = int(time.time() - start)
-        self.log.info(f"Repair duration: {elapsed} seconds")
-        results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
-            query=space_used_query, start=start, end=start)
-        skipped_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
-            query=skipped_bytes_query, start=start, end=start)
-        read_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
-            query=read_bytes_query, start=start, end=start)
-        self.log.info(f"Prometheus results space: {results[0]}")
-        self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
-        self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
+        partition_offset = 1
+        
+        for cycle in range(10):
+            self.log.info(f"Cycle {cycle + 1}/5: Running repair")
+            
+            space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
+            skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+            read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+            start = time.time()
+            self.repair_nodetool_repair()
+            elapsed = int(time.time() - start)
+            self.log.info(f"Repair duration: {elapsed} seconds")
+            
+            results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+                query=space_used_query, start=start, end=start)
+            skipped_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+                query=skipped_bytes_query, start=start, end=start)
+            read_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+                query=read_bytes_query, start=start, end=start)
+            
+            self.log.info(f"Prometheus results space: {results[0]}")
+            self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
+            self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
+            
+            argus_client = self.target_node.test_config.argus_client()
+            data_table = self.TimerResult()
+            data_table.add_result(column="duration", row=f"{cycle + 1}", value=elapsed, status=Status.UNSET)
+            data_table.add_result(column="bytes", row=f"{cycle + 1}", value=int(results[0]['values'][0][1]), status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_skipped", row=f"{cycle + 1}", value=int(skipped_results[0]['values'][0][1]), status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_read", row=f"{cycle + 1}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
+            submit_results_to_argus(argus_client, data_table)
+            
+            self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
+            partition_end = partition_offset + 20971520 - 1
+            stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
+                        f"-pop seq={partition_offset}..{partition_end} -mode cql3 native " \
+                        f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
+                        f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
+            
+            cs_thread = self.tester.run_stress_thread(
+                stress_cmd=stress_cmd, stop_test_on_failure=False, round_robin=True)
+            self.tester.verify_stress_thread(cs_thread, error_handler=self._nemesis_stress_failure_handler)
+            
+            partition_offset = partition_end + 1
 
-        argus_client = self.target_node.test_config.argus_client()
-
-        data_table = self.TimerResult()
-        data_table.add_result(column="duration", row=f"{self.cycle}", value=elapsed, status=Status.UNSET)
-        data_table.add_result(column="bytes", row=f"{self.cycle}", value=int(results[0]['values'][0][1]), status=Status.UNSET)
-        data_table.add_result(column="sstable_bytes_skipped", row=f"{self.cycle}", value=int(skipped_results[0]['values'][0][1]), status=Status.UNSET)
-        data_table.add_result(column="sstable_bytes_read", row=f"{self.cycle}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
-        submit_results_to_argus(argus_client, data_table)
-        self.cycle += 1
-
-    # End of Nemesis running code
 
     @latency_calculator_decorator(legend="Run repair process with nodetool repair")
     def repair_nodetool_repair(self, node=None, publish_event=True):
@@ -6932,3 +6947,5 @@ class RepairMonkey(Nemesis):
 
     def disrupt(self):
         self.call_next_nemesis()
+
+
