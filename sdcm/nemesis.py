@@ -1939,7 +1939,7 @@ class Nemesis(NemesisFlags):
         """
         partition_offset = 1
         
-        for cycle in range(10):
+        for cycle in range(5):
             self.log.info(f"Cycle {cycle + 1}/5: Running repair")
             
             space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
@@ -1970,9 +1970,15 @@ class Nemesis(NemesisFlags):
             submit_results_to_argus(argus_client, data_table)
             
             self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
-            partition_end = partition_offset + 20971520 - 1
+            # partition_end = partition_offset + 20971520 - 1
+            # stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
+            #             f"-pop seq={partition_offset}..{partition_end} -mode cql3 native " \
+            #             f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
+            #             f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
+            
+            # use random distribution 
             stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
-                        f"-pop seq={partition_offset}..{partition_end} -mode cql3 native " \
+                        f"-pop 'dist=uniform(1..20971520)' -mode cql3 native " \
                         f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
                         f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
             
@@ -1980,7 +1986,7 @@ class Nemesis(NemesisFlags):
                 stress_cmd=stress_cmd, stop_test_on_failure=False, round_robin=True)
             self.tester.verify_stress_thread(cs_thread, error_handler=self._nemesis_stress_failure_handler)
             
-            partition_offset = partition_end + 1
+            # partition_offset = partition_end + 1
 
 
     @latency_calculator_decorator(legend="Run repair process with nodetool repair")
