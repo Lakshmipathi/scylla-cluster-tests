@@ -1939,7 +1939,7 @@ class Nemesis(NemesisFlags):
         """
         partition_offset = 1
         
-        for cycle in range(5):
+        for cycle in range(10):
             self.log.info(f"Cycle {cycle + 1}/5: Running repair")
             
             space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
