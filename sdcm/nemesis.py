@@ -1939,7 +1939,7 @@ class Nemesis(NemesisFlags):
         """
         partition_offset = 1
         
-        for cycle in range(10):
+        for cycle in range(20):
             self.log.info(f"Cycle {cycle + 1}/5: Running repair")
             
             space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
@@ -1994,8 +1994,7 @@ class Nemesis(NemesisFlags):
         node = node if node else self.target_node
         with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 48), \
                 self.action_log_scope("Start nodetool repair", target=node.name):
-            # node.run_nodetool(sub_cmd="cluster repair", publish_event=publish_event)
-            node.run_nodetool(sub_cmd="repair", publish_event=publish_event)
+            node.run_nodetool(sub_cmd="repair keyspace1", publish_event=publish_event)
 
     def run_repair_on_nodes(self, nodes: list, publish_event=True):
         """
