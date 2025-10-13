@@ -11,9 +11,10 @@ n_loaders: 1
 seeds_num: 3
 simulated_racks: 3
 
-instance_type_db: 'i4i.4xlarge'
+instance_type_db: 'i4i.2xlarge'
 
-nemesis_class_name: 'SisyphusMonkey'
+#nemesis_class_name: 'SisyphusMonkey'
+nemesis_class_name: 'AddRemoveMvNemesis'
 nemesis_seed: '032'
 
 user_prefix: 'longevity-100gb-4h'
