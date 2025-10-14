@@ -1927,8 +1927,10 @@ class Nemesis(NemesisFlags):
             Columns = [
                 ColumnMetadata(name="bytes", unit="bytet", type=ResultType.INTEGER, higher_is_better=False),
                 ColumnMetadata(name="duration", unit="HH:MM:SS", type=ResultType.DURATION, higher_is_better=False),
-                ColumnMetadata(name="sstable_bytes_skipped", unit="bytes", type=ResultType.INTEGER, higher_is_better=False),
-                ColumnMetadata(name="sstable_bytes_read", unit="bytes", type=ResultType.INTEGER, higher_is_better=False),
+                ColumnMetadata(name="sstable_bytes_skipped", unit="bytes",
+                               type=ResultType.INTEGER, higher_is_better=False),
+                ColumnMetadata(name="sstable_bytes_read", unit="bytes",
+                               type=ResultType.INTEGER, higher_is_better=False),
             ]
 
     @target_data_nodes
@@ -1937,64 +1939,72 @@ class Nemesis(NemesisFlags):
         Run a standard repair process on the target node in 5 cycles.
         Each cycle runs repair and then creates 100GB of data for the next cycle.
         """
-        partition_offset = 1
-        
-        for cycle in range(20):
+        partition_offset = 5
+
+        for cycle in range(5):
+            self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
+            partition_end = partition_offset + 20971525 - 1
+            stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
+                f"-pop seq={partition_offset}..{partition_end} -mode cql3 native " \
+                f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
+                f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
+            self.log.info(f"stress_cmd: {stress_cmd}")
+            self.tester.kill_test("Terminating")
+            # use random distribution
+            # stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
+            #            f"-pop 'dist=uniform(1..20971520)' -mode cql3 native " \
+            #            f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
+            #            f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
+
+            cs_thread = self.tester.run_stress_thread(
+                stress_cmd=stress_cmd, stop_test_on_failure=False, round_robin=True)
+            self.tester.verify_stress_thread(cs_thread, error_handler=self._nemesis_stress_failure_handler)
+
+            partition_offset = partition_end + 1
+
             self.log.info(f"Cycle {cycle + 1}/5: Running repair")
-            
-            space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
+
+            du_result = self.target_node.remoter.run('du -sb /var/lib/scylla/data/keyspace1/standard* 2>/dev/null || true', ignore_status=True)
+            disk_usage_bytes = sum(int(line.split()[0]) for line in du_result.stdout.strip().split('\n') if line and line.split()[0].isdigit())
+            self.log.info(f"Disk usage for keyspace1/standard*: {disk_usage_bytes} bytes")
+
+            # Comment out Prometheus queries
+            # space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
             skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
             read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
             start = time.time()
             self.repair_nodetool_repair()
             elapsed = int(time.time() - start)
             self.log.info(f"Repair duration: {elapsed} seconds")
-            
-            results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
-                query=space_used_query, start=start, end=start)
+
+            # results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
+            #     query=space_used_query, start=start, end=start)
             skipped_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
                 query=skipped_bytes_query, start=start, end=start)
             read_results = PrometheusDBStats(host=self.monitoring_set.nodes[0].external_address).query(
                 query=read_bytes_query, start=start, end=start)
-            
-            self.log.info(f"Prometheus results space: {results[0]}")
+
+            # self.log.info(f"Prometheus results space: {results[0]}")
             self.log.info(f"Prometheus results skipped_bytes: {skipped_results[0]}")
             self.log.info(f"Prometheus results read_bytes: {read_results[0]}")
-            
+
             argus_client = self.target_node.test_config.argus_client()
             data_table = self.TimerResult()
             data_table.add_result(column="duration", row=f"{cycle + 1}", value=elapsed, status=Status.UNSET)
-            data_table.add_result(column="bytes", row=f"{cycle + 1}", value=int(results[0]['values'][0][1]), status=Status.UNSET)
-            data_table.add_result(column="sstable_bytes_skipped", row=f"{cycle + 1}", value=int(skipped_results[0]['values'][0][1]), status=Status.UNSET)
-            data_table.add_result(column="sstable_bytes_read", row=f"{cycle + 1}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
+            data_table.add_result(column="bytes", row=f"{cycle + 1}", value=disk_usage_bytes, status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_skipped",
+                                  row=f"{cycle + 1}", value=int(skipped_results[0]['values'][0][1]), status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_read",
+                                  row=f"{cycle + 1}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
             submit_results_to_argus(argus_client, data_table)
-            
-            self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
-            #partition_end = partition_offset + 20971520 - 1
-            #stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
-            #             f"-pop seq={partition_offset}..{partition_end} -mode cql3 native " \
-            #             f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
-            #             f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
-            
-            # use random distribution 
-            stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
-                        f"-pop 'dist=uniform(1..20971520)' -mode cql3 native " \
-                        f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
-                        f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
-            
-            cs_thread = self.tester.run_stress_thread(
-                stress_cmd=stress_cmd, stop_test_on_failure=False, round_robin=True)
-            self.tester.verify_stress_thread(cs_thread, error_handler=self._nemesis_stress_failure_handler)
-            
-            #partition_offset = partition_end + 1
-
 
     @latency_calculator_decorator(legend="Run repair process with nodetool repair")
     def repair_nodetool_repair(self, node=None, publish_event=True):
         node = node if node else self.target_node
         with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 48), \
                 self.action_log_scope("Start nodetool repair", target=node.name):
-            node.run_nodetool(sub_cmd="cluster repair keyspace1", publish_event=publish_event)
+            node.run_nodetool(sub_cmd="cluster repair keyspace1 standard1 --incremental-mode incremental",
+                              publish_event=publish_event)
 
     def run_repair_on_nodes(self, nodes: list, publish_event=True):
         """
@@ -2276,7 +2286,7 @@ class Nemesis(NemesisFlags):
                     del added_columns_info['column_names'][column_name]
         if add:
             cmd = f"ALTER TABLE {self._add_drop_column_target_table[1]} " \
-                  f"ADD ( {', '.join(['%s %s' % (col[0], col[1]) for col in add])} );"
+                f"ADD ( {', '.join(['%s %s' % (col[0], col[1]) for col in add])} );"
             if self._add_drop_column_run_cql_query(cmd, self._add_drop_column_target_table[0]):
                 for column_name, column_type in add:
                     added_columns_info['column_names'][column_name] = column_type
@@ -3925,11 +3935,11 @@ class Nemesis(NemesisFlags):
             if match_type == 'random':
                 probability = random.choice(['0.0001', '0.001', '0.01', '0.1', '0.3', '0.6', '0.8', '0.9'])
                 return f'randomly chosen packet with {probability} probability', \
-                       f'-m statistic --mode {mode} --probability {probability}'
+                    f'-m statistic --mode {mode} --probability {probability}'
             elif match_type == 'nth':
                 every = random.choice(['2', '4', '8', '16', '32', '64', '128'])
                 return f'every {every} packet', \
-                       f'-m statistic --mode {mode} --every {every} --packet 0'
+                    f'-m statistic --mode {mode} --every {every} --packet 0'
         elif match_type == 'limit':
             period = random.choice(['second', 'minute'])
             pkts_per_period = random.choice({
@@ -3937,11 +3947,11 @@ class Nemesis(NemesisFlags):
                 'minute': [2, 10, 40, 80]
             }.get(period))
             return f'string of {pkts_per_period} very first packets every {period}', \
-                   f'-m limit --limit {pkts_per_period}/{period}'
+                f'-m limit --limit {pkts_per_period}/{period}'
         elif match_type == 'connbytes':
             bytes_from = random.choice(['100', '200', '400', '800', '1600', '3200', '6400', '12800', '1280000'])
             return f'every packet from connection that total byte counter exceeds {bytes_from}', \
-                   f'-m connbytes --connbytes-mode bytes --connbytes-dir both --connbytes {bytes_from}'
+                f'-m connbytes --connbytes-mode bytes --connbytes-dir both --connbytes {bytes_from}'
         return 'every packet', ''
 
     @staticmethod
@@ -3961,7 +3971,7 @@ class Nemesis(NemesisFlags):
                 'icmp-admin-prohibited'
             ])
             return f'rejected with {reject_with}', \
-                   f'{target_type} --reject-with {reject_with}'
+                f'{target_type} --reject-with {reject_with}'
         return 'dropped', f'{target_type}'
 
     def _run_commands_wait_and_cleanup(
@@ -4816,9 +4826,9 @@ class Nemesis(NemesisFlags):
     def _write_read_data_to_multi_dc_keyspace(self, datacenters: List[str]) -> None:
         InfoEvent(message='Writing and reading data with new dc').publish()
         write_cmd = f"cassandra-stress write no-warmup cl=ALL n=100000 -schema 'keyspace=keyspace_new_dc " \
-                    f"replication(strategy=NetworkTopologyStrategy,{datacenters[0]}=3,{datacenters[1]}=1) " \
-                    f"compression=LZ4Compressor compaction(strategy=SizeTieredCompactionStrategy)' " \
-                    f"-mode cql3 native compression=lz4 -rate threads=5 -pop seq=1..100000 -log interval=5"
+            f"replication(strategy=NetworkTopologyStrategy,{datacenters[0]}=3,{datacenters[1]}=1) " \
+            f"compression=LZ4Compressor compaction(strategy=SizeTieredCompactionStrategy)' " \
+            f"-mode cql3 native compression=lz4 -rate threads=5 -pop seq=1..100000 -log interval=5"
         write_thread = self.tester.run_stress_thread(stress_cmd=write_cmd, round_robin=True, stop_test_on_failure=False)
         self.tester.verify_stress_thread(write_thread, error_handler=self._nemesis_stress_failure_handler)
         with self.action_log_scope("Verify multi DC keyspace data", target=self.target_node.name):
@@ -4830,8 +4840,8 @@ class Nemesis(NemesisFlags):
 
     def _verify_multi_dc_keyspace_data(self, consistency_level: str = "ALL"):
         read_cmd = f"cassandra-stress read no-warmup cl={consistency_level} n=100000 -schema 'keyspace=keyspace_new_dc " \
-                   f"compression=LZ4Compressor' -mode cql3 native compression=lz4 -rate threads=5 " \
-                   f"-pop seq=1..100000 -log interval=5"
+            f"compression=LZ4Compressor' -mode cql3 native compression=lz4 -rate threads=5 " \
+            f"-pop seq=1..100000 -log interval=5"
         read_thread = self.tester.run_stress_thread(stress_cmd=read_cmd, round_robin=True, stop_test_on_failure=False)
         self.tester.verify_stress_thread(read_thread, error_handler=self._nemesis_stress_failure_handler)
 
@@ -5284,16 +5294,16 @@ class Nemesis(NemesisFlags):
             audit_start = datetime.datetime.now() - datetime.timedelta(seconds=5)
             InfoEvent(message='Writing/Reading data from audited keyspace').publish()
             write_cmd = f"cassandra-stress write no-warmup cl=ONE n=1000 -schema" \
-                        f" 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)" \
-                        f" keyspace={audit_keyspace}' -mode cql3 native -rate 'threads=1 throttle=1000/s'" \
-                        f" -pop seq=1..1000 -col 'n=FIXED(1) size=FIXED(128)' -log interval=5"
+                f" 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)" \
+                f" keyspace={audit_keyspace}' -mode cql3 native -rate 'threads=1 throttle=1000/s'" \
+                f" -pop seq=1..1000 -col 'n=FIXED(1) size=FIXED(128)' -log interval=5"
             write_thread = self.tester.run_stress_thread(
                 stress_cmd=write_cmd, round_robin=True, stop_test_on_failure=False)
             self.tester.verify_stress_thread(write_thread, error_handler=self._nemesis_stress_failure_handler)
             read_cmd = f"cassandra-stress read no-warmup cl=ONE n=1000 " \
-                       f" -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)" \
-                       f" keyspace={audit_keyspace}' -mode cql3 native -rate 'threads=1 throttle=1000/s'" \
-                       f" -pop seq=1..1000 -col 'n=FIXED(1) size=FIXED(128)' -log interval=5"
+                f" -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)" \
+                f" keyspace={audit_keyspace}' -mode cql3 native -rate 'threads=1 throttle=1000/s'" \
+                f" -pop seq=1..1000 -col 'n=FIXED(1) size=FIXED(128)' -log interval=5"
             read_thread = self.tester.run_stress_thread(
                 stress_cmd=read_cmd, round_robin=True, stop_test_on_failure=False)
             self.tester.verify_stress_thread(read_thread, error_handler=self._nemesis_stress_failure_handler)
@@ -6953,5 +6963,3 @@ class RepairMonkey(Nemesis):
 
     def disrupt(self):
         self.call_next_nemesis()
-
-
