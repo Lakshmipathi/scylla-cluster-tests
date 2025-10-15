@@ -1949,7 +1949,7 @@ class Nemesis(NemesisFlags):
                 f"-schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3)' " \
                 f"-col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
             self.log.info(f"stress_cmd: {stress_cmd}")
-            self.tester.kill_test("Terminating")
+            #self.tester.kill_test("Terminating")
             # use random distribution
             # stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
             #            f"-pop 'dist=uniform(1..20971520)' -mode cql3 native " \
@@ -2003,7 +2003,7 @@ class Nemesis(NemesisFlags):
         node = node if node else self.target_node
         with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 48), \
                 self.action_log_scope("Start nodetool repair", target=node.name):
-            node.run_nodetool(sub_cmd="cluster repair keyspace1 standard1 --incremental-mode incremental",
+            node.run_nodetool(sub_cmd="cluster repair keyspace1 standard1 --incremental-mode full",
                               publish_event=publish_event)
 
     def run_repair_on_nodes(self, nodes: list, publish_event=True):
