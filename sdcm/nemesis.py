@@ -1933,6 +1933,7 @@ class Nemesis(NemesisFlags):
                                type=ResultType.INTEGER, higher_is_better=False),
             ]
 
+
     @target_data_nodes
     def disrupt_standard_repair(self):
         """
@@ -1941,7 +1942,7 @@ class Nemesis(NemesisFlags):
         """
         partition_offset = 5
 
-        for cycle in range(5):
+        for cycle in range(2):
             self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
             partition_end = partition_offset + 20971525 - 1
             stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
@@ -1959,19 +1960,106 @@ class Nemesis(NemesisFlags):
             cs_thread = self.tester.run_stress_thread(
                 stress_cmd=stress_cmd, stop_test_on_failure=False, round_robin=True)
             self.tester.verify_stress_thread(cs_thread, error_handler=self._nemesis_stress_failure_handler)
-
             partition_offset = partition_end + 1
-
             self.log.info(f"Cycle {cycle + 1}/5: Running repair")
 
-            du_result = self.target_node.remoter.run('du -sb /var/lib/scylla/data/keyspace1/standard* 2>/dev/null || true', ignore_status=True)
-            disk_usage_bytes = sum(int(line.split()[0]) for line in du_result.stdout.strip().split('\n') if line and line.split()[0].isdigit())
-            self.log.info(f"Disk usage for keyspace1/standard*: {disk_usage_bytes} bytes")
+            # Collect metrics before repair for all nodes
+            metrics_before = {}
+            for node in self.cluster.data_nodes:
+                # get disk usage for keyspace1/standard* before repair
+                du_result = node.remoter.run('du -sb /var/lib/scylla/data/keyspace1/standard* 2>/dev/null || true', ignore_status=True)
+                disk_usage_bytes = sum(int(line.split()[0]) for line in du_result.stdout.strip().split('\n') if line and line.split()[0].isdigit())
+                
+                # get metrics
+                def get_metrics(node, metric_name):
+                    num = 0
+                    metrics = node.remoter.run(f"curl -s http://localhost:9180/metrics").stdout
+                    pattern = re.compile(rf"^{metric_name}")
+                    for metric in metrics.split('\n'):
+                        if pattern.match(metric) is not None:
+                            num += int(metric.split()[1])
+                    return num  
+                
+                def get_incremental_repair_sst_skipped_bytes(node):
+                    return get_metrics(node, "scylla_repair_inc_sst_skipped_bytes")
+                
+                def get_incremental_repair_sst_read_bytes(node):
+                    return get_metrics(node, "scylla_repair_inc_sst_read_bytes")
+
+                skipped_bytes_before = get_incremental_repair_sst_skipped_bytes(node)
+                read_bytes_before = get_incremental_repair_sst_read_bytes(node)
+                
+                # Store in dictionary
+                metrics_before[node.name] = {
+                    'disk_usage_bytes': disk_usage_bytes,
+                    'skipped_bytes_before': skipped_bytes_before,
+                    'read_bytes_before': read_bytes_before
+                }
+
+            # do repair and calculate time
+            start = time.time()
+            self.repair_nodetool_repair(node)
+            elapsed = int(time.time() - start)
+            self.log.info(f"Repair duration on {node.name}: {elapsed} seconds")
+
+            # Collect metrics after repair for all nodes
+            metrics_after = {}
+            for node in self.cluster.data_nodes:
+                skipped_bytes_after = get_incremental_repair_sst_skipped_bytes(node)
+                read_bytes_after = get_incremental_repair_sst_read_bytes(node)
+                
+                # disk usage may change after repair, get it again
+                du_result = node.remoter.run('du -sb /var/lib/scylla/data/keyspace1/standard* 2>/dev/null || true', ignore_status=True)
+                disk_usage_bytes = sum(int(line.split()[0]) for line in du_result.stdout.strip().split('\n') if line and line.split()[0].isdigit())
+                
+                metrics_after[node.name] = {
+                    'disk_usage_bytes': disk_usage_bytes,
+                    'skipped_bytes_after': skipped_bytes_after,
+                    'read_bytes_after': read_bytes_after
+                }
+
+            # Print all metrics after the loop
+            self.log.info("="*80)
+            self.log.info(f"Repair Metrics Summary for Cycle {cycle + 1}")
+            self.log.info("="*80)
+            for node_name in metrics_before.keys():
+                before = metrics_before[node_name]
+                after = metrics_after[node_name]
+                
+                skipped_bytes_delta = after['skipped_bytes_after'] - before['skipped_bytes_before']
+                read_bytes_delta = after['read_bytes_after'] - before['read_bytes_before']
+                
+                self.log.info(f"\nNode: {node_name}")
+                self.log.info(f"  Disk usage before repair: {before['disk_usage_bytes']} bytes")
+                self.log.info(f"  Disk usage after repair: {after['disk_usage_bytes']} bytes")
+                self.log.info(f"  Skipped bytes during repair: {skipped_bytes_delta} bytes")
+                self.log.info(f"  Read bytes during repair: {read_bytes_delta} bytes")
+            self.log.info("="*80)
+
+            # submit to argus
+            '''
+            argus_client = node.test_config.argus_client()
+            data_table = self.TimerResult()
+            data_table.add_result(column="duration", row=f"{cycle + 1}", value=elapsed, status=Status.UNSET)                
+            data_table.add_result(column="bytes", row=f"{cycle + 1}", value=disk_usage_bytes, status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_skipped", row=f"{cycle + 1}", value=skipped_bytes, status=Status.UNSET)
+            data_table.add_result(column="sstable_bytes_read", row=f"{cycle + 1}", value=read_bytes, status=Status.UNSET)
+            submit_results_to_argus(argus_client, data_table)
+            '''
+
+            # get disk usage for keyspace1/standard* after repair
+
+                
+
+            #du_result = self.target_node.remoter.run('du -sb /var/lib/scylla/data/keyspace1/standard* 2>/dev/null || true', ignore_status=True)
+            #disk_usage_bytes = sum(int(line.split()[0]) for line in du_result.stdout.strip().split('\n') if line and line.split()[0].isdigit())
+            #self.log.info(f"Disk usage for keyspace1/standard*: {disk_usage_bytes} bytes")
 
             # Comment out Prometheus queries
-            # space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
-            skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
-            read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+            ## space_used_query = f'sum(node_filesystem_size_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}}) - sum(node_filesystem_avail_bytes{{mountpoint=~"/var/lib/scylla", instance=~"{self.target_node.private_ip_address}"}})'
+            #skipped_bytes_query = f'sum(scylla_repair_inc_sst_skipped_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+            #read_bytes_query = f'sum(scylla_repair_inc_sst_read_bytes{{instance=~"{self.target_node.private_ip_address}"}})'
+            '''
             start = time.time()
             self.repair_nodetool_repair()
             elapsed = int(time.time() - start)
@@ -1997,6 +2085,7 @@ class Nemesis(NemesisFlags):
             data_table.add_result(column="sstable_bytes_read",
                                   row=f"{cycle + 1}", value=int(read_results[0]['values'][0][1]), status=Status.UNSET)
             submit_results_to_argus(argus_client, data_table)
+            '''
 
     @latency_calculator_decorator(legend="Run repair process with nodetool repair")
     def repair_nodetool_repair(self, node=None, publish_event=True):

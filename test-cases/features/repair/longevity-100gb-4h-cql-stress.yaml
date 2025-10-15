@@ -11,7 +11,7 @@ stress_cmd: [
 ]
 #"cql-stress-cassandra-stress read cl=QUORUM duration=600m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=10 -pop seq=1..122914560 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
 
-n_db_nodes: 6
+n_db_nodes: 3
 n_loaders: 1
 seeds_num: 3
 simulated_racks: 3
