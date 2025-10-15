@@ -1942,7 +1942,7 @@ class Nemesis(NemesisFlags):
         """
         partition_offset = 5
 
-        for cycle in range(2):
+        for cycle in range(5):
             self.log.info(f"Cycle {cycle + 1}/5: Creating 100GB data")
             partition_end = partition_offset + 20971525 - 1
             stress_cmd = f"cassandra-stress write n=20971520 cl=QUORUM " \
@@ -2025,15 +2025,8 @@ class Nemesis(NemesisFlags):
             for node_name in metrics_before.keys():
                 before = metrics_before[node_name]
                 after = metrics_after[node_name]
-                
-                skipped_bytes_delta = after['skipped_bytes_after'] - before['skipped_bytes_before']
-                read_bytes_delta = after['read_bytes_after'] - before['read_bytes_before']
-                
-                self.log.info(f"\nNode: {node_name}")
-                self.log.info(f"  Disk usage before repair: {before['disk_usage_bytes']} bytes")
-                self.log.info(f"  Disk usage after repair: {after['disk_usage_bytes']} bytes")
-                self.log.info(f"  Skipped bytes during repair: {skipped_bytes_delta} bytes")
-                self.log.info(f"  Read bytes during repair: {read_bytes_delta} bytes")
+
+                self.log.info(f"Node: {node_name} | Repair duration: {elapsed} seconds | Disk usage before repair: {before['disk_usage_bytes']} | Disk usage after repair: {after['disk_usage_bytes']} | Skipped bytes before repair: {before['skipped_bytes_before']} | Skipped bytes after repair: {after['skipped_bytes_after']} | Read bytes before repair: {before['read_bytes_before']} | Read bytes after repair: {after['read_bytes_after']}")
             self.log.info("="*80)
 
             # submit to argus
