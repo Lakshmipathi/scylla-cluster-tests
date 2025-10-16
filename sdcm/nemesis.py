@@ -2085,7 +2085,7 @@ class Nemesis(NemesisFlags):
         node = node if node else self.target_node
         with adaptive_timeout(Operations.REPAIR, node, timeout=HOUR_IN_SEC * 48), \
                 self.action_log_scope("Start nodetool repair", target=node.name):
-            node.run_nodetool(sub_cmd="cluster repair keyspace1 standard1 --incremental-mode full",
+            node.run_nodetool(sub_cmd="cluster repair keyspace1 standard1 --incremental-mode disabled",
                               publish_event=publish_event)
 
     def run_repair_on_nodes(self, nodes: list, publish_event=True):
