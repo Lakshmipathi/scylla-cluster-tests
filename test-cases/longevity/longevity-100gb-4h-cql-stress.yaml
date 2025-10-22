@@ -30,4 +30,4 @@ hinted_handoff: 'enabled'
 parallel_node_operations: true
 
 append_scylla_yaml:
-  rf_rack_valid_keyspaces: false
+  compaction_static_shares: 100
