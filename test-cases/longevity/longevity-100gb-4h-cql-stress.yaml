@@ -31,3 +31,4 @@ parallel_node_operations: true
 
 append_scylla_yaml:
   compaction_static_shares: 100
+  rf_rack_valid_keyspaces: false
