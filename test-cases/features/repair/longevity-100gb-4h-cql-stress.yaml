@@ -21,10 +21,11 @@ instance_type_db: 'i4i.2xlarge'
 #nemesis_selector: ["", "disruptive"]
 #nemesis_seed: '032'
 #nemesis_class_name: 'RepairMonkey'
-nemesis_class_name: 'NoCorruptRepairMonkey'
+#nemesis_class_name: 'NoCorruptRepairMonkey'
+nemesis_class_name: 'CorruptThenRepairMonkey'
 #nemesis_class_name: 'NoOpMonkey'
 #nemesis_interval: 15
-incremental_repair_mode: 'full'
+#incremental_repair_mode: 'full'
 
 user_prefix: 'longevity-100gb-4h'
 #space_node_threshold: 64424
