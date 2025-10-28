@@ -25,7 +25,7 @@ instance_type_db: 'i4i.2xlarge'
 nemesis_class_name: 'CorruptThenRepairMonkey'
 #nemesis_class_name: 'NoOpMonkey'
 #nemesis_interval: 15
-incremental_repair_mode: 'full'
+incremental_repair_mode: 'incremental'
 
 user_prefix: 'longevity-100gb-4h'
 #space_node_threshold: 64424
