@@ -26,7 +26,7 @@ nemesis_class_name: 'SisyphusMonkey'
 #nemesis_class_name: 'CorruptThenRepairMonkey'
 #nemesis_class_name: 'NoOpMonkey'
 nemesis_interval: 15
-#incremental_repair_mode: 'full'
+incremental_repair_mode: 'disabled'
 
 user_prefix: 'longevity-100gb-4h'
 #space_node_threshold: 64424
