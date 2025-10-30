@@ -11,7 +11,7 @@ stress_cmd: [
 ]
 #"cql-stress-cassandra-stress read cl=QUORUM duration=600m -schema 'replication(strategy=NetworkTopologyStrategy,replication_factor=3) compaction(strategy=SizeTieredCompactionStrategy)' -mode cql3 native -rate threads=10 -pop seq=1..122914560 -col 'n=FIXED(10) size=FIXED(512)' -log interval=15"
 
-n_db_nodes: 6
+n_db_nodes: 3
 n_loaders: 1
 seeds_num: 3
 
@@ -25,7 +25,7 @@ instance_type_db: 'i4i.2xlarge'
 nemesis_class_name: 'SisyphusMonkey'
 #nemesis_class_name: 'CorruptThenRepairMonkey'
 #nemesis_class_name: 'NoOpMonkey'
-nemesis_interval: 15
+nemesis_interval: 5
 #incremental_repair_mode: 'disabled'
 
 user_prefix: 'longevity-100gb-4h'
