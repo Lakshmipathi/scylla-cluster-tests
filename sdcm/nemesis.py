@@ -1911,9 +1911,11 @@ class Nemesis(NemesisFlags):
 
         target_node = nodes[0]
         if is_tablets_feature_enabled(target_node):
+            incremental_mode = self.cluster.params.get('incremental_repair_mode')
+            repair_cmd = f"cluster repair --incremental-mode {incremental_mode}" if incremental_mode else "cluster repair"
             with adaptive_timeout(Operations.REPAIR, target_node, timeout=timeout), \
-                    self.action_log_scope("Start nodetool cluster repair", target=target_node.name):
-                target_node.run_nodetool(sub_cmd="cluster repair", publish_event=publish_event)
+                    self.action_log_scope(f"Start nodetool {repair_cmd}", target=target_node.name):
+                target_node.run_nodetool(sub_cmd=repair_cmd, publish_event=publish_event)
 
     @latency_calculator_decorator(legend="Run repair process through Scylla manager")
     def run_repair_manager(self, ignore_down_hosts: bool = False, timeout=HOUR_IN_SEC * 3):
