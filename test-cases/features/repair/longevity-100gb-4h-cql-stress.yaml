@@ -27,7 +27,7 @@ nemesis_seed: '032'
 #nemesis_class_name: 'CorruptThenRepairMonkey'
 #nemesis_class_name: 'NoOpMonkey'
 nemesis_interval: 5
-incremental_repair_mode: 'disabled'
+incremental_repair_mode: 'incremental'
 
 user_prefix: 'longevity-100gb-4h'
 #space_node_threshold: 64424
